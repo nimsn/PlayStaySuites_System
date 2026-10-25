@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Member D - Audit Logs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8 bg-gray-100">
+    <h1 class="text-2xl font-bold mb-4">Member D: Audit Logs & Workflow</h1>
+    
+    <div class="bg-white p-4 rounded shadow">
+        <h2 class="font-bold mb-2">Room Audit Trail (RIGHT JOIN Report)</h2>
+        <table class="w-full border">
+            <thead><tr class="bg-gray-200"><th>Log ID</th><th>Room #</th><th>Prev Status</th><th>New Status</th><th>Timestamp</th></tr></thead>
+            <tbody id="logTable"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadLogs() {
+            const res = await fetch('/api/logs/reports/audit');
+            const data = await res.json();
+            document.getElementById('logTable').innerHTML = data.map(l => 
+                <tr class="border-t"><td>${l.log_id || 'N/A'}</td><td>${l.room_number}</td><td>${l.previous_status || 'None'}</td><td>${l.new_status || 'None'}</td><td>${l.changed_at || 'No History'}</td></tr>
+            ).join('');
+        }
+        loadLogs();
+    </script>
+</body>
+</html>
