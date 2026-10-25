@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Member B - Room Catalog</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8 bg-gray-100">
+    <h1 class="text-2xl font-bold mb-4">Member B: Room Catalog</h1>
+    
+    <div class="bg-white p-4 rounded shadow">
+        <h2 class="font-bold mb-2">Rooms & Types (INNER JOIN Report)</h2>
+        <table class="w-full border">
+            <thead><tr class="bg-gray-200"><th>Room #</th><th>Type</th><th>Rate/Hr</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody id="roomTable"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadRooms() {
+            const res = await fetch('/api/rooms/reports/details');
+            const data = await res.json();
+            document.getElementById('roomTable').innerHTML = data.map(r => 
+                `<tr class="border-t">
+                    <td>${r.room_number}</td><td>${r.type_name}</td><td>₱${r.base_rate_per_hour}</td><td>${r.current_status}</td>
+                    <td><button onclick="updateStatus('${r.room_number}', 'Maintenance')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Set Maintenance</button></td>
+                </tr>`
+            ).join('');
+        }
+        loadRooms();
+    </script>
+</body>
+</html>
