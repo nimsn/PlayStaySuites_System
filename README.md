@@ -13,11 +13,11 @@
 
 |  Member | GitHub Username | Tables | Endpoints/Screens | Join Report & Join Type | Feature Role |
 |-----|-----|-----|-----|-----|-----|
-|**Sablada, Jhanyle**|*@jhanyle567*|`roles` `users` `staff`|`users.html`|**LEFT JOIN**|**User & Staff Access**|
-|**Velasco, Ruel**|*@rueljr123*|`room_types` `rooms` `ammenities`|`rooms.html`|**INNER JOIN**|**Master Data & Rooms**|
-|**Suson, Niño**|*@nimsn*|`room_amenities` `services` `bookings`|`bookings.html`|**INNER JOIN**| **Transaction & Rules** |
-|**Tuangco, Brenalyn**|*@brenalyn092*|`promos` `booking_services` `room_status_logs`|`checkin_logs.html`|**RIGHT JOIN**|**Workflow & Audit**|
-|**Sarinse, Irene**|*@Irene5143*|`invoices` `payments`|`invoices.html`|**FULL OUTER JOIN**|**Billing, Payments, & Reports**|
+|**Sablada, Jhanyle**|*jhanyle567*|`roles` `users` `staff`|`users.html`|**LEFT JOIN**|**User & Staff Access**|
+|**Velasco, Ruel**|*rueljr123*|`room_types` `rooms` `ammenities`|`rooms.html`|**INNER JOIN**|**Master Data & Rooms**|
+|**Suson, Niño**|*nimsn*|`room_amenities` `services` `bookings`|`bookings.html`|**INNER JOIN**| **Transaction & Rules** |
+|**Tuangco, Brenalyn**|*brenalyn092*|`promos` `booking_services` `room_status_logs`|`checkin_logs.html`|**RIGHT JOIN**|**Workflow & Audit**|
+|**Sarinse, Irene**|*Irene5143*|`invoices` `payments`|`invoices.html`|**FULL OUTER JOIN**|**Billing, Payments, & Reports**|
 
 ---
 
