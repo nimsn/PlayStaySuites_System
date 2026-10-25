@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Member E - Invoices & Billing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8 bg-gray-100">
+    <h1 class="text-2xl font-bold mb-4">Member E: Billing & Payments</h1>
+    
+    <div class="bg-white p-4 rounded shadow">
+        <h2 class="font-bold mb-2">Payment Reconciliation (FULL OUTER JOIN Report)</h2>
+        <table class="w-full border">
+            <thead><tr class="bg-gray-200"><th>Invoice ID</th><th>Total Due</th><th>Status</th><th>Paid Method</th><th>Amount Paid</th></tr></thead>
+            <tbody id="billingTable"></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function loadBilling() {
+            const res = await fetch('/api/billing/reports/reconciliation');
+            const data = await res.json();
+            document.getElementById('billingTable').innerHTML = data.map(i => 
+                <tr class="border-t"><td>${i.invoice_id || 'N/A'}</td><td>₱${i.total_due || 0}</td><td>${i.invoice_status || 'N/A'}</td><td>${i.payment_method || 'Unpaid'}</td><td>₱${i.amount_paid || 0}</td></tr>
+            ).join('');
+        }
+        loadBilling();
+    </script>
+</body>
+</html>
