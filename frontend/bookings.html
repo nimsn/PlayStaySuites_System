@@ -1,47 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Member C - Bookings</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookings | PlayStaySuites</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
-<body class="p-8 bg-gray-100">
-    <h1 class="text-2xl font-bold mb-4">Member C: Bookings & Check-In</h1>
-    
-    <div class="bg-white p-4 rounded shadow mb-6">
-        <h2 class="font-bold mb-2">New Booking</h2>
-        <input id="userId" placeholder="User ID" class="border p-2 mr-2">
-        <input id="roomId" placeholder="Room ID" class="border p-2 mr-2">
-        <input id="amount" placeholder="Total Amount" class="border p-2 mr-2">
-        <button onclick="makeBooking()" class="bg-green-600 text-white px-4 py-2 rounded">Check-In</button>
-    </div>
+<body>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script src="js/app.js"></script>
+<script>
+const FLOW = {
+  Reserved: [['Check in', 'Active'], ['Cancel', 'Cancelled']],
+  Active:   [['Check out', 'Completed']],
+};
 
-    <div class="bg-white p-4 rounded shadow">
-        <h2 class="font-bold mb-2">Active Check-ins (INNER JOIN Report)</h2>
-        <table class="w-full border">
-            <thead><tr class="bg-gray-200"><th>Booking #</th><th>Student Name</th><th>Room #</th><th>Time</th><th>Status</th></tr></thead>
-            <tbody id="bookingTable"></tbody>
-        </table>
-    </div>
-
-    <script>
-        async function loadBookings() {
-            const res = await fetch('/api/bookings/reports/active');
-            const data = await res.json();
-            document.getElementById('bookingTable').innerHTML = data.map(b => 
-                `<tr class="border-t"><td>${b.booking_id}</td><td>${b.first_name} ${b.last_name}</td><td>${b.room_number}</td><td>${b.check_in_time}</td><td>${b.booking_status}</td></tr>`
-            ).join('');
-        }
-        async function makeBooking() {
-            const body = {
-                user_id: document.getElementById('userId').value,
-                room_id: document.getElementById('roomId').value,
-                staff_id: 1, check_in_time: new Date().toISOString().slice(0, 19).replace('T', ' '),
-                total_amount: document.getElementById('amount').value
-            };
-            await fetch('/api/bookings', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-            loadBookings();
-        }
-        loadBookings();
-    </script>
+initCrud({
+  title: 'Bookings',
+  endpoint: '/bookings',     
+  idKey: 'booking_id',
+  canEdit: false,            
+  canDelete: false,
+  columns: [
+    { key: 'booking_id', label: 'ID' },
+    { key: 'customer_name', label: 'Customer' },
+    { key: 'room_number', label: 'Room' },
+    { key: 'check_in_time', label: 'Check-in', render: r => fmt(r.check_in_time) },
+    { key: 'check_out_time', label: 'Check-out', render: r => fmt(r.check_out_time) },
+    { key: 'total_amount', label: 'Total', render: r => peso(r.total_amount) },
+    { key: 'booking_status', label: 'Status', render: r => badge(r.booking_status) },
+  ],
+  fields: [
+    { key: 'user_id', label: 'Customer', type: 'select', from: { url: '/users', value: 'user_id', label: o => `${o.first_name} ${o.last_name}` } },
+    { key: 'room_id', label: 'Room', type: 'select', from: { url: '/rooms', value: 'room_id', label: o => `${o.room_number} (${o.type_name})` } },
+    { key: 'check_in_time', label: 'Check-in time', type: 'datetime-local' },
+    { key: 'check_out_time', label: 'Check-out time', type: 'datetime-local' },
+  ],
+  validate: b => (b.check_out_time <= b.check_in_time ? 'Check-out must be after check-in.' : ''),
+  actions: r => (FLOW[r.booking_status] || []).map(([label, status]) => ({
+    label,
+    run: async () => {
+      await api(`/bookings/${r.booking_id}/status`, 'PATCH', { booking_status: status });
+      toast(`Booking ${status.toLowerCase()}`);
+    },
+  })),
+});
+</script>
 </body>
 </html>
