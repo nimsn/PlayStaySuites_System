@@ -1,12 +1,15 @@
 {
   "name": "playstaysuites_system",
   "version": "1.0.0",
-  "description": "dbms sia final project",
+  "private": true,
+  "description": "PlayStaySuites: a room booking and management system (DBMS / SIA final project)",
   "keywords": [
     "dbms",
     "sia",
     "finals",
-    "project"
+    "project",
+    "express",
+    "mysql"
   ],
   "homepage": "https://github.com/nimsn/PlayStaySuites_System#readme",
   "bugs": {
@@ -17,9 +20,9 @@
     "url": "git+https://github.com/nimsn/PlayStaySuites_System.git"
   },
   "license": "ISC",
-  "author": "sablada, sarinse, suson, tuangco, velasco",
+  "author": "Sablada, Sarinse, Suson, Tuangco, Velasco",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "backend/server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
