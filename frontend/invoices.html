@@ -1,29 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Member E - Invoices & Billing</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoices | PlayStaySuites</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
-<body class="p-8 bg-gray-100">
-    <h1 class="text-2xl font-bold mb-4">Member E: Billing & Payments</h1>
-    
-    <div class="bg-white p-4 rounded shadow">
-        <h2 class="font-bold mb-2">Payment Reconciliation (FULL OUTER JOIN Report)</h2>
-        <table class="w-full border">
-            <thead><tr class="bg-gray-200"><th>Invoice ID</th><th>Total Due</th><th>Status</th><th>Paid Method</th><th>Amount Paid</th></tr></thead>
-            <tbody id="billingTable"></tbody>
-        </table>
-    </div>
+<body>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script src="js/app.js"></script>
+<script>
+const balance = r => Number(r.total_due || 0) - Number(r.amount_paid || 0);
+ 
+const shown = r => (r.invoice_status === 'Unpaid' && Number(r.amount_paid) > 0 ? 'Partial' : r.invoice_status);
+const METHODS = { cash: 'Cash', gcash: 'GCash', card: 'Credit Card', 'credit card': 'Credit Card' };
 
-    <script>
-        async function loadBilling() {
-            const res = await fetch('/api/billing/reports/reconciliation');
-            const data = await res.json();
-            document.getElementById('billingTable').innerHTML = data.map(i => 
-                <tr class="border-t"><td>${i.invoice_id || 'N/A'}</td><td>₱${i.total_due || 0}</td><td>${i.invoice_status || 'N/A'}</td><td>${i.payment_method || 'Unpaid'}</td><td>₱${i.amount_paid || 0}</td></tr>
-            ).join('');
-        }
-        loadBilling();
-    </script>
+initCrud({
+  title: 'Invoices & Payments',
+  endpoint: '/invoices',     
+  idKey: 'invoice_id',
+  canEdit: false,
+  canDelete: false,
+  columns: [
+    { key: 'invoice_id', label: 'Invoice' },
+    { key: 'booking_id', label: 'Booking', render: r => (r.booking_id ? '#' + esc(r.booking_id) : '') },
+    { key: 'customer_name', label: 'Customer' },
+    { key: 'issued_at', label: 'Issued', render: r => fmt(r.issued_at) },
+    { key: 'total_due', label: 'Total due', render: r => peso(r.total_due) },
+    { key: 'amount_paid', label: 'Paid', render: r => peso(r.amount_paid) },
+    { key: 'balance', label: 'Balance', render: r => peso(balance(r)) },
+    { key: 'invoice_status', label: 'Status', render: r => badge(shown(r)) },
+  ],
+  fields: [
+    { key: 'booking_id', label: 'Create invoice for booking', type: 'select',
+      from: { url: '/bookings', value: 'booking_id', label: o => `#${o.booking_id} - ${o.customer_name} - Room ${o.room_number}` } },
+  ],
+  actions: r => (r.invoice_status !== 'Unpaid' ? [] : [{
+    label: 'Record payment',
+    run: async () => {
+      const amount = prompt(Payment `amount (balance ${peso(balance(r))})`);
+      if (!amount) return;
+      const typed = prompt('Payment method: Cash, GCash or Credit Card', 'Cash');
+      if (!typed) return;
+      const method = METHODS[typed.trim().toLowerCase()];
+      if (!method) throw new Error('Payment method must be Cash, GCash or Credit Card.');
+      await api('/payments', 'POST', { invoice_id: r.invoice_id, amount_paid: Number(amount), payment_method: method });
+      toast('Payment recorded');
+    },
+  }]),
+});
+</script>
 </body>
 </html>
