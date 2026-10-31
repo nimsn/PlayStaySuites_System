@@ -1,50 +1,41 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Member A - Users & Roles</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Users & Staff | PlayStaySuites</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
-<body class="p-8 bg-gray-100">
-    <h1 class="text-2xl font-bold mb-4">Member A: Users Management</h1>
-    
-    <div class="bg-white p-4 rounded shadow mb-6">
-        <h2 class="font-bold mb-2">Register User</h2>
-        <input id="fname" placeholder="First Name" class="border p-2 mr-2">
-        <input id="lname" placeholder="Last Name" class="border p-2 mr-2">
-        <input id="email" placeholder="Email" class="border p-2 mr-2">
-        <button onclick="createUser()" class="bg-blue-600 text-white px-4 py-2 rounded">Add User</button>
-        <p id="msg" class="text-sm mt-2 text-green-600"></p>
-    </div>
-
-    
-    <div class="bg-white p-4 rounded shadow">
-        <h2 class="font-bold mb-2">Users List</h2>
-        <table class="w-full border">
-            <thead><tr class="bg-gray-200"><th>ID</th><th>Name</th><th>Email</th><th>Role</th></tr></thead>
-            <tbody id="userTable"></tbody>
-        </table>
-    </div>
-
-    <script>
-        async function loadUsers() {
-            const res = await fetch('/api/users');
-            const data = await res.json();
-            document.getElementById('userTable').innerHTML = data.map(u => 
-                <tr class="border-t"><td>${u.user_id}</td><td>${u.first_name} ${u.last_name}</td><td>${u.email}</td><td>${u.role_name}</td></tr>
-            ).join('');
-        }
-        async function createUser() {
-            const body = {
-                role_id: 3, student_id_number: '2026-001',
-                first_name: document.getElementById('fname').value,
-                last_name: document.getElementById('lname').value,
-                email: document.getElementById('email').value,
-                password_hash: '123456', phone_number: '09123456789'
-            };
-            const res = await fetch('/api/users', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-            if(res.ok) { document.getElementById('msg').innerText = "Created!"; loadUsers(); }
-        }
-        loadUsers();
-    </script>
+<body>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script src="js/app.js"></script>
+<script>
+initCrud({
+  title: 'Users & Staff',
+  endpoint: '/users',       
+  idKey: 'user_id',
+  columns: [
+    { key: 'user_id', label: 'ID' },
+    { key: 'last_name', label: 'Name', render: r => esc(${r.first_name} ${r.last_name}) },
+    { key: 'student_id_number', label: 'Student ID', render: r => esc(r.student_id_number || '-') },
+    { key: 'email', label: 'Email' },
+    { key: 'phone_number', label: 'Phone' },
+    { key: 'role_name', label: 'Role', render: r => badge(r.role_name || 'none') },
+    { key: 'position', label: 'Staff position', render: r => r.position ? esc(r.position) : '<span class="mute">Not staff</span>' },
+  ],
+  fields: [
+    { key: 'first_name', label: 'First name' },
+    { key: 'last_name', label: 'Last name' },
+    { key: 'student_id_number', label: 'Student ID (optional)', required: false },
+    { key: 'email', label: 'Email', type: 'email' },
+    { key: 'phone_number', label: 'Phone number' },
+    { key: 'role_id', label: 'Role', type: 'select', from: { url: '/users/roles', value: 'role_id', label: o => o.role_name } },
+    { key: 'password', label: 'Password (blank keeps current)', type: 'password', required: false },
+    { key: 'position', label: 'Staff position (staff only)', required: false },
+    { key: 'shift_schedule', label: 'Shift schedule (staff only)', required: false },
+  ],
+});
+</script>
 </body>
 </html>
