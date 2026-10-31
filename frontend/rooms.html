@@ -1,32 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Member B - Room Catalog</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rooms | PlayStaySuites</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
-<body class="p-8 bg-gray-100">
-    <h1 class="text-2xl font-bold mb-4">Member B: Room Catalog</h1>
-    
-    <div class="bg-white p-4 rounded shadow">
-        <h2 class="font-bold mb-2">Rooms & Types (INNER JOIN Report)</h2>
-        <table class="w-full border">
-            <thead><tr class="bg-gray-200"><th>Room #</th><th>Type</th><th>Rate/Hr</th><th>Status</th><th>Action</th></tr></thead>
-            <tbody id="roomTable"></tbody>
-        </table>
-    </div>
-
-    <script>
-        async function loadRooms() {
-            const res = await fetch('/api/rooms/reports/details');
-            const data = await res.json();
-            document.getElementById('roomTable').innerHTML = data.map(r => 
-                `<tr class="border-t">
-                    <td>${r.room_number}</td><td>${r.type_name}</td><td>₱${r.base_rate_per_hour}</td><td>${r.current_status}</td>
-                    <td><button onclick="updateStatus('${r.room_number}', 'Maintenance')" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Set Maintenance</button></td>
-                </tr>`
-            ).join('');
-        }
-        loadRooms();
-    </script>
+<body>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script src="js/app.js"></script>
+<script>
+initCrud({
+  title: 'Rooms',
+  endpoint: '/rooms',        // INNER JOIN: rooms + room_types (+ amenities as a comma-separated string)
+  idKey: 'room_id',
+  columns: [
+    { key: 'room_number', label: 'Room' },
+    { key: 'type_name', label: 'Type' },
+    { key: 'base_rate', label: 'Base rate', render: r => peso(r.base_rate) },
+    { key: 'max_capacity', label: 'Max capacity' },
+    { key: 'floor_level', label: 'Floor' },
+    { key: 'amenities', label: 'Amenities', render: r => r.amenities ? esc(r.amenities) : '<span class="mute">None</span>' },
+    { key: 'current_status', label: 'Status', render: r => badge(r.current_status) },
+  ],
+  fields: [
+    { key: 'room_number', label: 'Room number' },
+    { key: 'room_type_id', label: 'Room type', type: 'select', from: { url: '/room-types', value: 'room_type_id', label: o => o.type_name } },
+    { key: 'floor_level', label: 'Floor level', type: 'number' },
+    { key: 'current_status', label: 'Status', type: 'select', options: ['Available', 'Occupied', 'Maintenance', 'Cleaning'] },
+  ],
+});
+</script>
 </body>
 </html>
