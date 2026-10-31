@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const logCtrl = require('../controllers/logController');
 
-router.post('/', logCtrl.createLog);
-router.get('/reports/audit', logCtrl.getAuditReport);
+const LogController = require('../controllers/logController');
+
+router.post('/', LogController.createLog);
+
+router.get('/', LogController.getAuditReport);
+router.get('/audit-report', LogController.getAuditReport);
 
 module.exports = router;
