@@ -8,8 +8,8 @@ const handleError = (res, err, action) => {
         return res.status(400).json({ message: 'Booking or invoice not found.' });
     }
 
-    console.error(Error trying to ${action}:, err);
-    return res.status(500).json({ message: Unable to ${action}. });
+    console.error(`Error trying to ${action}:`, err);
+    return res.status(500).json({ message: `Unable to ${action}.` });
 };
 
 exports.addInvoice = async (req, res) => {
@@ -18,6 +18,14 @@ exports.addInvoice = async (req, res) => {
         res.status(201).json({ message: 'Invoice generated', invoiceId, total_due });
     } catch (err) {
         handleError(res, err, 'generate invoice');
+    }
+};
+
+exports.getEligibleBookings = async (req, res) => {
+    try {
+        res.status(200).json(await BillingModel.getEligibleBookings());
+    } catch (err) {
+        handleError(res, err, 'load bookings eligible for invoicing');
     }
 };
 
