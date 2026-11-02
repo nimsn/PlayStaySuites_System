@@ -189,6 +189,7 @@ const BookingModel = {
         `);
         return rows;
     },
+
     getBookingsByUser: async (userId) => {
         const [rows] = await db.query(`
             SELECT b.booking_id, b.user_id, b.room_id, b.staff_id,
@@ -205,6 +206,7 @@ const BookingModel = {
 
         return rows;
     },
+    
     getActiveBookingsReport: async () => {
         const [rows] = await db.query(`
             SELECT b.booking_id, CONCAT(u.first_name, ' ', u.last_name) AS customer_name,
