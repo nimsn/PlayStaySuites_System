@@ -1,4 +1,5 @@
 CREATE DATABASE IF NOT EXISTS final_system;
+
 USE final_system;
 
 CREATE TABLE roles (
@@ -50,6 +51,15 @@ CREATE TABLE amenities (
     amenity_name VARCHAR(255) NOT NULL,
     price DECIMAL(10,2),
     description TEXT
+);
+
+CREATE TABLE room_amenities (
+    room_amenity_id INT PRIMARY KEY AUTO_INCREMENT,
+    room_id INT NOT NULL,
+    amenity_id INT NOT NULL,
+    FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
+    FOREIGN KEY (amenity_id) REFERENCES amenities(amenity_id) ON DELETE CASCADE,
+    UNIQUE KEY uq_room_amenity (room_id, amenity_id)
 );
 
 CREATE TABLE services (

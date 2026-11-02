@@ -41,6 +41,10 @@ INSERT INTO amenities (amenity_id, amenity_name, price, description) VALUES
 (209, 'Additional Chairs', 20.00, 'Extra chairs for group use'),
 (210, 'Toiletries', 50.00, 'Personal hygiene supplies');
 
+INSERT INTO room_amenities (room_amenity_id, room_id, amenity_id) VALUES
+(107, 5, 208),
+(108, 4, 206);
+
 INSERT INTO services (service_id, service_name, unit_price, category) VALUES 
 (23, 'Colored Printing (per page)', 5.00, 'Academic'),
 (24, 'Snack Bundle (Chips + Drink)', 75.00, 'Refreshments'),
