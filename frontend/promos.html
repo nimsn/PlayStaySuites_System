@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Promotions | PlayStaySuites</title><link rel="stylesheet" href="style.css"></head>
+<body><nav id="nav"></nav><main id="app"></main><script src="app.js"></script><script>
+initCrud({
+  title: 'Promotions',
+  subtitle: 'Admin and Staff create and maintain promotion codes. Only Admin/Staff can apply a promotion to a booking at the front desk.',
+  endpoint: '/promos', idKey: 'promo_id',
+  columns: [
+    { key: 'promo_code', label: 'Code' },
+    { key: 'discount_percentage', label: 'Discount', render: r => `${Number(r.discount_percentage)}%` },
+    { key: 'description', label: 'Description' },
+    { key: 'valid_from', label: 'Starts', render: r => r.valid_from ? fmt(r.valid_from) : 'Immediately' },
+    { key: 'valid_until', label: 'Ends', render: r => r.valid_until ? fmt(r.valid_until) : 'No expiry' }
+  ],
+  fields: [
+    { key: 'promo_code', label: 'Promotion code' },
+    { key: 'discount_percentage', label: 'Discount percentage', type: 'number', step: '0.01' },
+    { key: 'description', label: 'Description', required: false },
+    { key: 'valid_from', label: 'Valid from', type: 'datetime-local', required: false },
+    { key: 'valid_until', label: 'Valid until', type: 'datetime-local', required: false }
+  ],
+  validate: b => b.valid_from && b.valid_until && b.valid_until <= b.valid_from ? 'End date must be later than start date.' : ''
+});
+</script></body></html>
