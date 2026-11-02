@@ -8,7 +8,7 @@ const handleError = (res, err, action) => {
         return res.status(400).json({ message: 'Invalid room or staff id.' });
     }
 
-    console.error(Error `trying to ${action}:`, err);
+    console.error(`Error trying to ${action}:`, err);
     return res.status(500).json({ message: `Failed to ${action}.` });
 };
 
