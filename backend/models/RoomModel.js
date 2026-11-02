@@ -1,4 +1,4 @@
-const db = require('../config/db'); 
+const db = require('../config/db'); // mysql2 promise pool
 const LogModel = require('./LogModel');
 
 
@@ -11,7 +11,6 @@ class RoomError extends Error {
 
 const { ROOM_STATUSES } = LogModel;
 
-
 const validateRoom = (d) => {
     const room_number = d.room_number ? String(d.room_number).trim() : '';
     if (!room_number || !d.room_type_id || d.floor_level === undefined || d.floor_level === null || d.floor_level === '') {
@@ -22,48 +21,86 @@ const validateRoom = (d) => {
 
     const current_status = d.current_status || 'Available';
     if (!ROOM_STATUSES.includes(current_status)) {
-        throw new RoomError(current_status must be one of: ${ROOM_STATUSES.join(', ')}.);
+        throw new RoomError(`current_status must be one of: ${ROOM_STATUSES.join(', ')}.`);
     }
-    return { room_number, room_type_id: d.room_type_id, floor_level, current_status };
+
+    let amenity_ids;
+    if (d.amenity_ids !== undefined && d.amenity_ids !== null) {
+        if (!Array.isArray(d.amenity_ids)) throw new RoomError('amenity_ids must be a list of amenity ids.');
+        amenity_ids = [...new Set(d.amenity_ids.map(Number))];
+        if (amenity_ids.some((n) => !Number.isInteger(n) || n < 1)) {
+            throw new RoomError('amenity_ids must only contain valid amenity ids.');
+        }
+    }
+
+    return { room_number, room_type_id: d.room_type_id, floor_level, current_status, amenity_ids };
+};
+
+const syncAmenities = async (conn, roomId, amenityIds) => {
+    await conn.query('DELETE FROM room_amenities WHERE room_id = ?', [roomId]);
+    if (amenityIds.length) {
+        await conn.query('INSERT INTO room_amenities (room_id, amenity_id) VALUES ?', [
+            amenityIds.map((amenityId) => [roomId, amenityId]),
+        ]);
+    }
 };
 
 const RoomModel = {
     RoomError,
 
-    
     getAllRooms: async () => {
         const [rooms] = await db.query(`
-            SELECT r.room_id, r.room_type_id, r.room_number, r.floor_level, r.current_status,
-                   rt.type_name, rt.base_rate, rt.max_capacity,
-                   GROUP_CONCAT(a.amenity_name ORDER BY a.amenity_name SEPARATOR ', ') AS amenities
+            SELECT
+                r.room_id,
+                r.room_type_id,
+                r.room_number,
+                r.floor_level,
+                r.current_status,
+                rt.type_name,
+                rt.base_rate_per_hour AS base_rate,
+                rt.max_capacity,
+                GROUP_CONCAT(DISTINCT a.amenity_name ORDER BY a.amenity_name SEPARATOR ', ') AS amenities,
+                GROUP_CONCAT(DISTINCT a.amenity_id ORDER BY a.amenity_id SEPARATOR ',') AS amenity_ids
             FROM rooms AS r
             INNER JOIN room_types AS rt ON r.room_type_id = rt.room_type_id
             LEFT JOIN room_amenities AS ra ON ra.room_id = r.room_id
             LEFT JOIN amenities AS a ON a.amenity_id = ra.amenity_id
-            GROUP BY r.room_id, rt.type_name, rt.base_rate, rt.max_capacity
+            GROUP BY
+                r.room_id, r.room_type_id, r.room_number, r.floor_level,
+                r.current_status, rt.type_name, rt.base_rate_per_hour, rt.max_capacity
             ORDER BY r.room_number ASC
         `);
         return rooms;
     },
 
-    
     getRoomTypes: async () => {
         const [types] = await db.query(
-            'SELECT room_type_id, type_name, base_rate, max_capacity FROM room_types ORDER BY type_name'
+            'SELECT room_type_id, type_name, base_rate_per_hour AS base_rate, max_capacity FROM room_types ORDER BY type_name'
         );
         return types;
     },
 
     createRoom: async (d) => {
         const v = validateRoom(d);
-        const [result] = await db.query(
-            'INSERT INTO rooms (room_type_id, room_number, current_status, floor_level) VALUES (?, ?, ?, ?)',
-            [v.room_type_id, v.room_number, v.current_status, v.floor_level]
-        );
-        return result.insertId;
+
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+            const [result] = await conn.query(
+                'INSERT INTO rooms (room_type_id, room_number, current_status, floor_level) VALUES (?, ?, ?, ?)',
+                [v.room_type_id, v.room_number, v.current_status, v.floor_level]
+            );
+            if (v.amenity_ids) await syncAmenities(conn, result.insertId, v.amenity_ids);
+            await conn.commit();
+            return result.insertId;
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
     },
 
-    
     updateRoom: async (roomId, d) => {
         const v = validateRoom(d);
 
@@ -80,6 +117,8 @@ const RoomModel = {
                 v.floor_level,
                 roomId,
             ]);
+
+            if (v.amenity_ids) await syncAmenities(conn, roomId, v.amenity_ids);
 
             if (v.current_status !== room.current_status) {
                 await LogModel.applyStatusChange(conn, {
@@ -99,12 +138,10 @@ const RoomModel = {
         }
     },
 
-    
     updateRoomStatus: async (roomId, status, { staff_id, remarks } = {}) => {
         return LogModel.addLog({ room_id: roomId, new_status: status, staff_id, remarks });
     },
 
-   
     deleteRoom: async (roomId) => {
         const [[{ n }]] = await db.query('SELECT COUNT(*) AS n FROM bookings WHERE room_id = ?', [roomId]);
         if (n > 0) throw new RoomError('This room has bookings and cannot be deleted. Set it to Maintenance instead.', 409);
@@ -113,11 +150,10 @@ const RoomModel = {
         if (!result.affectedRows) throw new RoomError('Room not found.', 404);
     },
 
-    
     getRoomDetailsReport: async () => {
         const [rooms] = await db.query(`
             SELECT r.room_number, r.current_status, r.floor_level,
-                   rt.type_name, rt.base_rate, rt.max_capacity
+                   rt.type_name, rt.base_rate_per_hour AS base_rate, rt.max_capacity
             FROM rooms AS r
             INNER JOIN room_types AS rt ON r.room_type_id = rt.room_type_id
             ORDER BY r.room_number ASC
