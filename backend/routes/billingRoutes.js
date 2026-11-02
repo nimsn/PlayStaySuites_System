@@ -1,13 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const billingCtrl = require('../controllers/billingController');
+const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware'); 
 
+const billingAccess = [authenticateToken, authorizeRoles('Admin', 'Staff')];
 
-router.get('/invoices', billingCtrl.getInvoices);
-router.post('/invoices', billingCtrl.addInvoice);
+router.get('/invoices/eligible-bookings', billingAccess, billingCtrl.getEligibleBookings);
+router.get('/invoices', billingAccess, billingCtrl.getInvoices);
+router.post('/invoices', billingAccess, billingCtrl.addInvoice);
 
-router.post('/payments', billingCtrl.addPayment);
+router.post('/payments', billingAccess, billingCtrl.addPayment);
 
-router.get('/reports/reconciliation', billingCtrl.getReconciliationReport);
+router.get('/reports/reconciliation', billingAccess, billingCtrl.getReconciliationReport);
 
 module.exports = router;
