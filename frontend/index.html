@@ -1,25 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PlayStaySuites</title>
-<link rel="stylesheet" href="frontend/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PlayStaySuites | Luxury Study Pods & Suites</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<nav id="nav"></nav>
-<main>
-  <div class="head"><h1>PlayStaySuites System</h1></div>
-  <p class="mute" style="margin-top:-6px;margin-bottom:20px">Pick a section to manage.</p>
-  <div class="grid">
-    <a class="card" href="users.html"><h2>Users &amp; Staff</h2><p>Customer and staff accounts, roles and shifts.</p></a>
-    <a class="card" href="rooms.html"><h2>Rooms</h2><p>Room list with type, rate, amenities and current status.</p></a>
-    <a class="card" href="bookings.html"><h2>Bookings</h2><p>Reserve rooms, check guests in and out, cancel bookings.</p></a>
-    <a class="card" href="checkin_logs.html"><h2>Check-in Logs</h2><p>History of room status changes.</p></a>
-    <a class="card" href="invoices.html"><h2>Invoices &amp; Payments</h2><p>Bills, balances and recorded payments.</p></a>
-  </div>
+    <nav id="nav"></nav>
+
+    <header class="hero-banner" id="hero">
+    <div class="hero-content">
+        <h1 id="welcomeTitle">Welcome to PlayStaySuites</h1>
+
+        <p id="welcomeDescription">
+            Experience comfort, focus, and entertainment.
+        </p>
+
+        <div class="search-widget card" id="searchWidget">
+            <h2>Find Your Perfect Space</h2>
+
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: flex-end;">
+
+                <label>Room Type
+                    <select id="searchType">
+                        <option value="">All Spaces</option>
+                        <option value="1">Study Pod (Quiet Space)</option>
+                        <option value="2">KTV Room (Entertainment)</option>
+                        <option value="3">Rest Capsule (Napping Pod)</option>
+                    </select>
+                </label>
+
+                <label>Check-In Date
+                    <input type="date" id="checkInDate">
+                </label>
+
+                <label>Check-Out Date
+                    <input type="date" id="checkOutDate">
+                </label>
+
+                <button class="btn" onclick="location.href='rooms.html'">
+                    Check Availability
+                </button>
+
+            </div>
+        </div>
+    </div>
+</header>
+
+    <main>
+    <div class="head">
+        <h2 id="dashboardTitle">Dashboard</h2>
+    </div>
+
+    <p class="mute" id="dashboardDescription">
+        Access your available PlayStaySuites features.
+    </p>
+
+    <div class="grid" id="dashboardCards"></div>
 </main>
-<script src="js/app.js"></script>
-<script>renderNav();</script>
+
+    <script src="app.js"></script>
+
+    <script>
+        if (requireAuth()) {
+            const user = getCurrentUser();
+
+            renderNav();
+
+            const cards = {
+                Student: [
+                    {
+                        title: 'Explore Rooms',
+                        description: 'Browse available study pods, KTV rooms, and rest capsules.',
+                        link: 'rooms.html'
+                    },
+                    {
+                        title: 'My Bookings',
+                        description: 'View and manage your personal reservations.',
+                        link: 'bookings.html'
+                    }
+                ],
+
+                Staff: [
+                    {
+                        title: 'Rooms & Pods',
+                        description: 'Manage room inventory, pricing, amenities, and statuses.',
+                        link: 'rooms.html'
+                    },
+                    {
+                        title: 'Amenities',
+                        description: 'Maintain available amenities and assign them to rooms.',
+                        link: 'amenities.html'
+                    },
+                    {
+                        title: 'Promotions',
+                        description: 'Create and maintain promotions for staff to apply.',
+                        link: 'promos.html'
+                    },
+                    {
+                        title: 'Reservations',
+                        description: 'View and manage customer bookings.',
+                        link: 'bookings.html'
+                    },
+                    {
+                        title: 'Check-in Logs',
+                        description: 'Monitor check-ins, room status changes, and housekeeping.',
+                        link: 'checkin_logs.html'
+                    },
+                    {
+                        title: 'Billing & Payments',
+                        description: 'Manage invoices, payments, and customer balances.',
+                        link: 'invoices.html'
+                    }
+                ],
+
+                Admin: [
+                    {
+                        title: 'Users & Staff',
+                        description: 'Manage registered users, students, and staff accounts.',
+                        link: 'users.html'
+                    },
+                    {
+                        title: 'Rooms & Pods',
+                        description: 'Manage room inventory, pricing, amenities, and statuses.',
+                        link: 'rooms.html'
+                    },
+                    {
+                        title: 'Amenities',
+                        description: 'Maintain available amenities and assign them to rooms.',
+                        link: 'amenities.html'
+                    },
+                    {
+                        title: 'Promotions',
+                        description: 'Create and maintain promotions for staff to apply.',
+                        link: 'promos.html'
+                    },
+                    {
+                        title: 'Reservations',
+                        description: 'Monitor and manage all customer bookings.',
+                        link: 'bookings.html'
+                    },
+                    {
+                        title: 'Check-in Logs',
+                        description: 'Monitor operational activities and audit records.',
+                        link: 'checkin_logs.html'
+                    },
+                    {
+                        title: 'Billing & Payments',
+                        description: 'Oversee invoices, payments, and financial records.',
+                        link: 'invoices.html'
+                    }
+                ]
+            };
+
+            const dashboardCards = cards[user.role] || [];
+
+            document.getElementById('welcomeTitle').textContent =
+                `Welcome to PlayStaySuites, ${user.role}!`;
+
+            document.getElementById('welcomeDescription').textContent =
+                user.role === 'Student'
+                    ? 'Find your perfect space and manage your reservations.'
+                    : user.role === 'Staff'
+                        ? 'Manage daily operations and customer reservations.'
+                        : 'Oversee users, rooms, bookings, and system operations.';
+
+            document.getElementById('dashboardTitle').textContent =
+                `${user.role} Dashboard`;
+
+            document.getElementById('dashboardDescription').textContent =
+                user.role === 'Student'
+                    ? 'Explore our facilities and access your reservations.'
+                    : 'Quick access to your available management modules.';
+
+            if (user.role !== 'Student') {
+                document.getElementById('searchWidget').style.display = 'none';
+            }
+
+            document.getElementById('dashboardCards').innerHTML =
+                dashboardCards.map(card => `
+                    <a class="card" href="${card.link}">
+                        <h2>${card.title}</h2>
+                        <p>${card.description}</p>
+                    </a>
+                `).join('');
+
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            const checkIn = document.getElementById('checkInDate');
+            if (checkIn) {
+                checkIn.value = today;
+            }
+        }
+    </script>
 </body>
 </html>
