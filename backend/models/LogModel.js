@@ -1,4 +1,4 @@
-const db = require('../config/db'); 
+const db = require('../config/db');
 
 class LogError extends Error {
     constructor(message, status = 400) {
@@ -9,46 +9,49 @@ class LogError extends Error {
 
 const ROOM_STATUSES = ['Available', 'Occupied', 'Maintenance', 'Cleaning'];
 
+const applyStatusChange = async (conn, { room_id, staff_id = null, new_status, remarks = null }) => {
+    if (!room_id || !new_status) throw new LogError('room_id and new_status are required.');
+    if (!ROOM_STATUSES.includes(new_status)) {
+        throw new LogError(`new_status must be one of: ${ROOM_STATUSES.join(', ')}.`);
+    }
+
+    const [[room]] = await conn.query('SELECT current_status FROM rooms WHERE room_id = ? FOR UPDATE', [room_id]);
+    if (!room) throw new LogError('Room not found.', 404);
+    if (room.current_status === new_status) throw new LogError(`Room is already ${new_status}.`, 409);
+
+    if (room.current_status === 'Occupied') {
+        const [active] = await conn.query(
+            "SELECT booking_id FROM bookings WHERE room_id = ? AND booking_status = 'Active' LIMIT 1",
+            [room_id]
+        );
+        if (active.length) {
+            throw new LogError(`Room has an active booking (#${active[0].booking_id}). Check the guest out first.`, 409);
+        }
+    }
+
+    await conn.query('UPDATE rooms SET current_status = ? WHERE room_id = ?', [new_status, room_id]);
+
+    const note = remarks && String(remarks).trim() ? String(remarks).trim() : null;
+    const [result] = await conn.query(
+        `INSERT INTO room_status_logs (room_id, staff_id, previous_status, new_status, remarks)
+         VALUES (?, ?, ?, ?, ?)`,
+        [room_id, staff_id || null, room.current_status, new_status, note]
+    );
+    return result.insertId;
+};
+
 const LogModel = {
     LogError,
     ROOM_STATUSES,
+    applyStatusChange,
 
-
-    addLog: async ({ room_id, staff_id = null, new_status, remarks = null }) => {
-        if (!room_id || !new_status) throw new LogError('room_id and new_status are required.');
-        if (!ROOM_STATUSES.includes(new_status)) {
-            throw new LogError(`new_status must be one of: ${ROOM_STATUSES.join(', ')}.`);
-        }
-
+    addLog: async (data) => {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
-
-            const [[room]] = await conn.query('SELECT current_status FROM rooms WHERE room_id = ? FOR UPDATE', [room_id]);
-            if (!room) throw new LogError('Room not found.', 404);
-            if (room.current_status === new_status) throw new LogError(`Room is already ${new_status}.`, 409);
-
-            if (room.current_status === 'Occupied') {
-                const [active] = await conn.query(
-                    "SELECT booking_id FROM bookings WHERE room_id = ? AND booking_status = 'Active' LIMIT 1",
-                    [room_id]
-                );
-                if (active.length) {
-                    throw new LogError(`Room has an active booking (#${active[0].booking_id}). Check the guest out first.`, 409);
-                }
-            }
-
-            await conn.query('UPDATE rooms SET current_status = ? WHERE room_id = ?', [new_status, room_id]);
-
-            const note = remarks && String(remarks).trim() ? String(remarks).trim() : null;
-            const [result] = await conn.query(
-                `INSERT INTO room_status_logs (room_id, staff_id, previous_status, new_status, remarks)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [room_id, staff_id || null, room.current_status, new_status, note]
-            );
-
+            const logId = await applyStatusChange(conn, data);
             await conn.commit();
-            return result.insertId;
+            return logId;
         } catch (err) {
             await conn.rollback();
             throw err;
