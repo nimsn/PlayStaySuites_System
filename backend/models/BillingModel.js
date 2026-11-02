@@ -1,4 +1,4 @@
-const db = require('../config/db'); // mysql2 promise pool
+const db = require('../config/db');
 
 class BillingError extends Error {
     constructor(message, status = 400) {
@@ -10,7 +10,7 @@ class BillingError extends Error {
 const PAYMENT_METHODS = ['Cash', 'GCash', 'Credit Card'];
 
 const toCents = (v) => Math.round(Number(v) * 100);
-const peso = (cents) => ₱${(cents / 100).toFixed(2)};
+const peso = (cents) => `₱${(cents / 100).toFixed(2)}`;
 const isId = (v) => Number.isInteger(Number(v)) && Number(v) > 0;
 
 const BillingModel = {
@@ -36,7 +36,7 @@ const BillingModel = {
 
             const [existing] = await conn.query('SELECT invoice_id FROM invoices WHERE booking_id = ? LIMIT 1', [bookingId]);
             if (existing.length) {
-                throw new BillingError(Booking #${bookingId} already has invoice #${existing[0].invoice_id}., 409);
+                throw new BillingError(`Booking #${bookingId} already has invoice #${existing[0].invoice_id}.`, 409);
             }
 
             const totalDue = (toCents(booking.total_amount) + toCents(booking.services_total)) / 100;
@@ -52,12 +52,30 @@ const BillingModel = {
         }
     },
 
+    getEligibleBookings: async () => {
+        const [rows] = await db.query(`
+            SELECT b.booking_id, b.total_amount, b.booking_status,
+                   b.check_in_time, b.check_out_time,
+                   CONCAT(u.first_name, ' ', u.last_name) AS customer_name,
+                   r.room_number
+            FROM bookings b
+            INNER JOIN users u ON u.user_id = b.user_id
+            INNER JOIN rooms r ON r.room_id = b.room_id
+            WHERE b.booking_status <> 'Cancelled'
+              AND NOT EXISTS (
+                  SELECT 1 FROM invoices i WHERE i.booking_id = b.booking_id
+              )
+            ORDER BY b.check_in_time DESC, b.booking_id DESC
+        `);
+        return rows;
+    },
+
     recordPayment: async ({ invoice_id, amount_paid, payment_method }) => {
         if (!isId(invoice_id)) throw new BillingError('A valid invoice_id is required.');
         const amount = Number(amount_paid);
         if (!Number.isFinite(amount) || amount <= 0) throw new BillingError('amount_paid must be greater than zero.');
         if (!PAYMENT_METHODS.includes(payment_method)) {
-            throw new BillingError(payment_method must be one of: ${PAYMENT_METHODS.join(', ')}.);
+            throw new BillingError(`payment_method must be one of: ${PAYMENT_METHODS.join(', ')}.`);
         }
 
         const conn = await db.getConnection();
@@ -70,7 +88,7 @@ const BillingModel = {
             );
             if (!invoice) throw new BillingError('Invoice not found.', 404);
             if (invoice.invoice_status !== 'Unpaid') {
-                throw new BillingError(This invoice is already ${invoice.invoice_status}., 409);
+                throw new BillingError(`This invoice is already ${invoice.invoice_status}.`, 409);
             }
 
             const [[{ paid }]] = await conn.query(
@@ -80,7 +98,7 @@ const BillingModel = {
 
             const balance = toCents(invoice.total_due) - toCents(paid);
             const payment = toCents(amount);
-            if (payment > balance) throw new BillingError(Payment is more than the balance of ${peso(balance)}., 409);
+            if (payment > balance) throw new BillingError(`Payment is more than the balance of ${peso(balance)}.`, 409);
 
             const [result] = await conn.query(
                 'INSERT INTO payments (invoice_id, payment_method, amount_paid) VALUES (?, ?, ?)',
