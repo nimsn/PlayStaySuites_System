@@ -9,8 +9,24 @@ const fail = (res, err) => {
 
 exports.addBooking = async (req, res) => {
     try {
-        const { bookingId, total_amount } = await BookingModel.createBooking(req.body || {});
-        res.status(201).json({ message: 'Booking created', bookingId, total_amount });
+        const bookingData = { ...req.body };
+
+        if (req.user.role === 'Student') {
+            bookingData.user_id = req.user.user_id;
+
+            bookingData.staff_id = null;
+            bookingData.promo_code = null;
+        }
+
+        const { bookingId, total_amount, discount_amount } =
+            await BookingModel.createBooking(bookingData);
+
+        res.status(201).json({
+            message: 'Booking created',
+            bookingId,
+            total_amount,
+            discount_amount
+        });
     } catch (err) {
         fail(res, err);
     }
@@ -18,7 +34,17 @@ exports.addBooking = async (req, res) => {
 
 exports.getBookings = async (req, res) => {
     try {
-        res.status(200).json(await BookingModel.getAllBookings());
+        let bookings;
+
+        if (req.user.role === 'Student') {
+            bookings = await BookingModel.getBookingsByUser(
+                req.user.user_id
+            );
+        } else {
+            bookings = await BookingModel.getAllBookings();
+        }
+
+        res.status(200).json(bookings);
     } catch (err) {
         fail(res, err);
     }
