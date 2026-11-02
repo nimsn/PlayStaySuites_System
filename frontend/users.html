@@ -4,20 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Users & Staff | PlayStaySuites</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <nav id="nav"></nav>
 <main id="app"></main>
-<script src="frontend/app.js"></script>
+<script src="app.js"></script>
 <script>
 initCrud({
   title: 'Users & Staff',
-  endpoint: '/users',       
+  subtitle: 'Customer accounts and staff records. Position and shift only apply to staff.',
+  endpoint: '/users',        // LEFT JOIN: every user (with role), plus staff details when they have a staff record
   idKey: 'user_id',
   columns: [
     { key: 'user_id', label: 'ID' },
-    { key: 'last_name', label: 'Name', render: r => esc(${r.first_name} ${r.last_name}) },
+    { key: 'last_name', label: 'Name', render: r => esc(`${r.first_name} ${r.last_name}`) },
     { key: 'student_id_number', label: 'Student ID', render: r => esc(r.student_id_number || '-') },
     { key: 'email', label: 'Email' },
     { key: 'phone_number', label: 'Phone' },
