@@ -4,21 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Invoices | PlayStaySuites</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <nav id="nav"></nav>
 <main id="app"></main>
-<script src="frontend"></script>
+<script src="app.js"></script>
 <script>
 const balance = r => Number(r.total_due || 0) - Number(r.amount_paid || 0);
- 
 const shown = r => (r.invoice_status === 'Unpaid' && Number(r.amount_paid) > 0 ? 'Partial' : r.invoice_status);
 const METHODS = { cash: 'Cash', gcash: 'GCash', card: 'Credit Card', 'credit card': 'Credit Card' };
 
 initCrud({
   title: 'Invoices & Payments',
-  endpoint: '/invoices',     
+  subtitle: 'Generate invoices for bookings that have not been billed yet, then record payments and track balances.',
+  submitLabel: 'Generate invoice',
+  successMessage: 'Invoice generated successfully.',
+  endpoint: '/invoices',
   idKey: 'invoice_id',
   canEdit: false,
   canDelete: false,
@@ -26,6 +28,7 @@ initCrud({
     { key: 'invoice_id', label: 'Invoice' },
     { key: 'booking_id', label: 'Booking', render: r => (r.booking_id ? '#' + esc(r.booking_id) : '') },
     { key: 'customer_name', label: 'Customer' },
+    { key: 'room_number', label: 'Room' },
     { key: 'issued_at', label: 'Issued', render: r => fmt(r.issued_at) },
     { key: 'total_due', label: 'Total due', render: r => peso(r.total_due) },
     { key: 'amount_paid', label: 'Paid', render: r => peso(r.amount_paid) },
@@ -33,13 +36,19 @@ initCrud({
     { key: 'invoice_status', label: 'Status', render: r => badge(shown(r)) },
   ],
   fields: [
-    { key: 'booking_id', label: 'Create invoice for booking', type: 'select',
-      from: { url: '/bookings', value: 'booking_id', label: o => `#${o.booking_id} - ${o.customer_name} - Room ${o.room_number}` } },
+    { key: 'booking_id', label: 'Booking to invoice', type: 'select', placeholder: 'Choose an eligible booking', empty: 'No bookings are waiting for an invoice.', help: 'Only non-cancelled bookings without an existing invoice are listed.', from: { url: '/invoices/eligible-bookings', value: 'booking_id', label: o => `#${o.booking_id} · ${o.customer_name} · Room ${o.room_number} · ${peso(o.total_amount)}` } },
   ],
+  preview: body => {
+    const select = document.querySelector('#f select[name="booking_id"]');
+    const option = select?.selectedOptions?.[0];
+    return body.booking_id && option?.value
+      ? `<div><b>Selected booking:</b> ${esc(option.textContent)}</div><small>Invoice total is calculated from the saved booking and eligible services. It is not editable here.</small>`
+      : '<span class="mute">Select a booking to review it before generating an invoice.</span>';
+  },
   actions: r => (r.invoice_status !== 'Unpaid' ? [] : [{
     label: 'Record payment',
     run: async () => {
-      const amount = prompt(Payment `amount (balance ${peso(balance(r))})`);
+      const amount = prompt(`Payment amount (balance ${peso(balance(r))})`);
       if (!amount) return;
       const typed = prompt('Payment method: Cash, GCash or Credit Card', 'Cash');
       if (!typed) return;
