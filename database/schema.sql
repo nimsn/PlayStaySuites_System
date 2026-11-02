@@ -8,9 +8,9 @@ CREATE TABLE roles (
 );
 
 CREATE TABLE users (
-    user_id INT  PRIMARY KEY AUTO_INCREMENT,
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
     role_id INT NOT NULL,
-    student_id_number VARCHAR(255) UNIQUE,
+    id_number VARCHAR(255) UNIQUE,
     first_name VARCHAR(255) NOT NULL,
     last_name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -21,7 +21,7 @@ CREATE TABLE users (
 );
 
 CREATE TABLE staff (
-    staff_id INT  PRIMARY KEY AUTO_INCREMENT,
+    staff_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
     position VARCHAR(255) NOT NULL,
     shift_schedule VARCHAR(255),
@@ -29,15 +29,15 @@ CREATE TABLE staff (
 );
 
 CREATE TABLE room_types (
-    room_type_id INT  PRIMARY KEY AUTO_INCREMENT,
+    room_type_id INT PRIMARY KEY AUTO_INCREMENT,
     type_name VARCHAR(255) NOT NULL,
-    base_rate DECIMAL(10,2) NOT NULL,
+    base_rate_per_hour DECIMAL(10,2) NOT NULL,
     max_capacity INT NOT NULL,
     description TEXT
 );
 
 CREATE TABLE rooms (
-    room_id INT  PRIMARY KEY AUTO_INCREMENT,
+    room_id INT PRIMARY KEY AUTO_INCREMENT,
     room_type_id INT NOT NULL,
     room_number VARCHAR(255) NOT NULL UNIQUE,
     current_status ENUM('Available', 'Occupied', 'Maintenance', 'Cleaning') DEFAULT 'Available',
@@ -46,32 +46,26 @@ CREATE TABLE rooms (
 );
 
 CREATE TABLE amenities (
-    amenity_id INT  PRIMARY KEY AUTO_INCREMENT,
+    amenity_id INT PRIMARY KEY AUTO_INCREMENT,
     amenity_name VARCHAR(255) NOT NULL,
-    price DECIMAL(10, 2) NOT NULL,
+    price DECIMAL(10,2),
     description TEXT
 );
 
-CREATE TABLE room_amenities (
-    room_amenity_id INT  PRIMARY KEY AUTO_INCREMENT,
-    room_id INT NOT NULL,
-    amenity_id INT NOT NULL,
-    FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
-    FOREIGN KEY (amenity_id) REFERENCES amenities(amenity_id) ON DELETE CASCADE
-);
-
 CREATE TABLE services (
-    service_id INT  PRIMARY KEY AUTO_INCREMENT,
+    service_id INT PRIMARY KEY AUTO_INCREMENT,
     service_name VARCHAR(255) NOT NULL,
     unit_price DECIMAL(10,2) NOT NULL,
     category VARCHAR(255)
 );
 
 CREATE TABLE promos (
-    promo_id INT  PRIMARY KEY AUTO_INCREMENT,
+    promo_id INT PRIMARY KEY AUTO_INCREMENT,
     promo_code VARCHAR(50) NOT NULL UNIQUE,
     discount_percentage DECIMAL(5,2) NOT NULL,
-    validity TEXT;
+    description TEXT,
+    valid_from DATETIME,
+    valid_until DATETIME
 );
 
 CREATE TABLE bookings (
@@ -82,14 +76,26 @@ CREATE TABLE bookings (
     check_in_time DATETIME NOT NULL,
     check_out_time DATETIME,
     total_amount DECIMAL(10,2) NOT NULL,
+    promo_id INT NULL,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
     booking_status ENUM('Reserved', 'Active', 'Completed', 'Cancelled') DEFAULT 'Reserved',
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
-    FOREIGN KEY (staff_id) REFERENCES staff(staff_id) ON DELETE SET NULL
+    FOREIGN KEY (staff_id) REFERENCES staff(staff_id) ON DELETE SET NULL,
+    FOREIGN KEY (promo_id) REFERENCES promos(promo_id) ON DELETE SET NULL
+);
+
+CREATE TABLE booking_amenities (
+    booking_amenity_id INT PRIMARY KEY AUTO_INCREMENT,
+    booking_id INT NOT NULL,
+    amenity_id INT NOT NULL,
+    FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
+    FOREIGN KEY (amenity_id) REFERENCES amenities(amenity_id) ON DELETE CASCADE,
+    UNIQUE KEY uq_booking_amenity (booking_id, amenity_id)
 );
 
 CREATE TABLE booking_services (
-    booking_service_id INT  PRIMARY KEY AUTO_INCREMENT,
+    booking_service_id INT PRIMARY KEY AUTO_INCREMENT,
     booking_id INT NOT NULL,
     service_id INT NOT NULL,
     quantity INT DEFAULT 1,
@@ -99,7 +105,7 @@ CREATE TABLE booking_services (
 );
 
 CREATE TABLE invoices (
-    invoice_id INT  PRIMARY KEY AUTO_INCREMENT,
+    invoice_id INT PRIMARY KEY AUTO_INCREMENT,
     booking_id INT NOT NULL,
     issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     total_due DECIMAL(10,2) NOT NULL,
