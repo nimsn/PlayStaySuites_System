@@ -1,6 +1,5 @@
 const RoomModel = require('../models/RoomModel');
 
-
 const handleError = (res, error, action) => {
     if (error.status) {
         return res.status(error.status).json({ message: error.message });
@@ -9,16 +8,14 @@ const handleError = (res, error, action) => {
         return res.status(409).json({ message: 'That room number already exists.' });
     }
     if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-        return res.status(400).json({ message: 'Invalid room type or staff id.' });
+        return res.status(400).json({ message: 'Invalid room type, amenity or staff id.' });
     }
 
-    console.error(Error trying to ${action}:, error);
-    return res.status(500).json({ message: Unable to ${action}. });
+    console.error(`Error trying to ${action}:`, error);
+    return res.status(500).json({ message: `Unable to ${action}.` });
 };
 
-
 const isValidId = (id) => /^[1-9]\d*$/.test(String(id));
-
 
 exports.getRooms = async (req, res) => {
     try {
@@ -30,7 +27,6 @@ exports.getRooms = async (req, res) => {
     }
 };
 
-
 exports.getRoomTypes = async (req, res) => {
     try {
         const types = await RoomModel.getRoomTypes();
@@ -40,7 +36,6 @@ exports.getRoomTypes = async (req, res) => {
         handleError(res, error, 'load room types');
     }
 };
-
 
 exports.addRoom = async (req, res) => {
     try {
@@ -54,7 +49,6 @@ exports.addRoom = async (req, res) => {
         handleError(res, error, 'add room');
     }
 };
-
 
 exports.editRoom = async (req, res) => {
     try {
@@ -76,7 +70,6 @@ exports.editRoom = async (req, res) => {
     }
 };
 
-
 exports.changeStatus = async (req, res) => {
     try {
         const { id } = req.params;
@@ -89,7 +82,6 @@ exports.changeStatus = async (req, res) => {
             });
         }
 
-        
         await RoomModel.updateRoomStatus(Number(id), newStatus, { staff_id, remarks });
 
         res.status(200).json({
@@ -99,7 +91,6 @@ exports.changeStatus = async (req, res) => {
         handleError(res, error, 'update room status');
     }
 };
-
 
 exports.removeRoom = async (req, res) => {
     try {
@@ -120,7 +111,6 @@ exports.removeRoom = async (req, res) => {
         handleError(res, error, 'delete room');
     }
 };
-
 
 exports.getRoomReport = async (req, res) => {
     try {
