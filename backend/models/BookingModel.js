@@ -23,7 +23,7 @@ const toDate = (sql) => new Date(sql.replace(' ', 'T'));
 const BookingModel = {
     BookingError,
 
-    createBooking: async ({ user_id, room_id, staff_id = null, check_in_time, check_out_time }) => {
+    createBooking: async ({ user_id, room_id, staff_id = null, check_in_time, check_out_time, promo_code = null }) => {
         if (!user_id || !room_id || !check_in_time || !check_out_time) {
             throw new BookingError('user_id, room_id, check_in_time and check_out_time are required.');
         }
@@ -39,7 +39,7 @@ const BookingModel = {
             await conn.beginTransaction();
 
             const [[room]] = await conn.query(
-                `SELECT r.current_status, t.base_rate
+                `SELECT r.current_status, t.type_name, t.base_rate_per_hour AS base_rate
                  FROM rooms r
                  INNER JOIN room_types t ON t.room_type_id = r.room_type_id
                  WHERE r.room_id = ? FOR UPDATE`,
@@ -64,16 +64,61 @@ const BookingModel = {
             }
 
             const hours = Math.max(1, Math.ceil((end - start) / 36e5));
-            const total_amount = hours * Number(room.base_rate);
+            const baseCents = hours * Math.round(Number(room.base_rate) * 100);
+            let promoId = null;
+            let discountCents = 0;
+
+            if (promo_code) {
+                const [[promo]] = await conn.query(
+                    `SELECT promo_id, discount_percentage, valid_from, valid_until
+                     FROM promos WHERE promo_code = ? FOR UPDATE`,
+                    [String(promo_code).trim()]
+                );
+                if (!promo) throw new BookingError('The selected promotion does not exist.');
+                const now = new Date();
+                if ((promo.valid_from && now < new Date(promo.valid_from)) ||
+                    (promo.valid_until && now > new Date(promo.valid_until))) {
+                    throw new BookingError('The selected promotion is not currently valid.');
+                }
+                const code = String(promo_code).trim().toUpperCase();
+                const percent = Number(promo.discount_percentage);
+                if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+                    throw new BookingError('The selected promotion has an invalid discount.');
+                }
+
+                if (code === 'WKDYS') {
+                    const weekday = start.getDay();
+                    const startsAt = start.getHours() * 60 + start.getMinutes();
+                    const endsAt = end.getHours() * 60 + end.getMinutes();
+                    const sameDay = start.toDateString() === end.toDateString();
+                    if (room.type_name !== 'KTV Room' || weekday < 1 || weekday > 4 ||
+                        !sameDay || startsAt < 13 * 60 || endsAt > 21 * 60) {
+                        throw new BookingError('WKDYS is valid only for KTV bookings from Monday to Thursday, 1 PM to 9 PM.');
+                    }
+                }
+
+                if (code === 'PLSR' || code === 'ARCD') {
+                    throw new BookingError(`${code} applies to a specific amenity/add-on, not the room rental. Staff must add the eligible item before this promotion can be supported.`);
+                }
+
+                promoId = promo.promo_id;
+                discountCents = Math.round(baseCents * percent / 100);
+            }
+
+            const totalCents = Math.max(0, baseCents - discountCents);
+            const total_amount = totalCents / 100;
+            const discount_amount = discountCents / 100;
 
             const [result] = await conn.query(
-                `INSERT INTO bookings (user_id, room_id, staff_id, check_in_time, check_out_time, total_amount, booking_status)
-                 VALUES (?, ?, ?, ?, ?, ?, 'Reserved')`,
-                [user_id, room_id, staff_id, inAt, outAt, total_amount]
+                `INSERT INTO bookings
+                    (user_id, room_id, staff_id, check_in_time, check_out_time,
+                     total_amount, promo_id, discount_amount, booking_status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Reserved')`,
+                [user_id, room_id, staff_id, inAt, outAt, total_amount, promoId, discount_amount]
             );
 
             await conn.commit();
-            return { bookingId: result.insertId, total_amount };
+            return { bookingId: result.insertId, total_amount, discount_amount };
         } catch (err) {
             await conn.rollback();
             throw err;
@@ -135,15 +180,31 @@ const BookingModel = {
             SELECT b.booking_id, b.user_id, b.room_id, b.staff_id,
                    CONCAT(u.first_name, ' ', u.last_name) AS customer_name,
                    r.room_number, b.check_in_time, b.check_out_time,
-                   b.total_amount, b.booking_status
+                   b.total_amount, b.promo_id, p.promo_code, b.discount_amount, b.booking_status
             FROM bookings b
             INNER JOIN users u ON b.user_id = u.user_id
             INNER JOIN rooms r ON b.room_id = r.room_id
+            LEFT JOIN promos p ON p.promo_id = b.promo_id
             ORDER BY b.check_in_time DESC
         `);
         return rows;
     },
+    getBookingsByUser: async (userId) => {
+        const [rows] = await db.query(`
+            SELECT b.booking_id, b.user_id, b.room_id, b.staff_id,
+                CONCAT(u.first_name, ' ', u.last_name) AS customer_name,
+                r.room_number, b.check_in_time, b.check_out_time,
+                b.total_amount, b.promo_id, p.promo_code, b.discount_amount, b.booking_status
+            FROM bookings b
+            INNER JOIN users u ON b.user_id = u.user_id
+            INNER JOIN rooms r ON b.room_id = r.room_id
+            LEFT JOIN promos p ON p.promo_id = b.promo_id
+            WHERE b.user_id = ?
+            ORDER BY b.check_in_time DESC
+        `, [userId]);
 
+        return rows;
+    },
     getActiveBookingsReport: async () => {
         const [rows] = await db.query(`
             SELECT b.booking_id, CONCAT(u.first_name, ' ', u.last_name) AS customer_name,
