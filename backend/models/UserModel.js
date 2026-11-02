@@ -1,6 +1,6 @@
 const { scrypt, randomBytes } = require('crypto');
 const { promisify } = require('util');
-const db = require('../config/db'); 
+const db = require('../config/db'); // mysql2 promise pool
 
 const scryptAsync = promisify(scrypt);
 
@@ -14,11 +14,11 @@ class UserError extends Error {
 const hashPassword = async (password) => {
     const salt = randomBytes(16).toString('hex');
     const key = await scryptAsync(String(password), salt, 64);
-    return ${salt}:${key.toString('hex')};
+    return `${salt}:${key.toString('hex')}`;
 };
 
 const t = (v) => String(v).trim();
-const clean = (v) => (v === undefined || v === null || t(v) === '' ? null : t(v)); // empty -> NULL
+const clean = (v) => (v === undefined || v === null || t(v) === '' ? null : t(v));
 
 const validate = (d, passwordRequired) => {
     if (!d.first_name || !d.last_name || !d.email || !d.phone_number || !d.role_id) {
@@ -26,7 +26,7 @@ const validate = (d, passwordRequired) => {
     }
     if (!/^\S+@\S+\.\S+$/.test(t(d.email))) throw new UserError('Email address is not valid.');
     if (passwordRequired && !d.password) throw new UserError('Password is required.');
-    if (d.password && String(d.password).length < throw new UserError('Password must be at least 8 characters.');
+    if (d.password && String(d.password).length < 8) throw new UserError('Password must be at least 8 characters.');
 };
 
 const UserModel = {
@@ -34,7 +34,7 @@ const UserModel = {
 
     getAllUsers: async () => {
         const [rows] = await db.query(`
-            SELECT u.user_id, u.role_id, u.student_id_number, u.first_name, u.last_name,
+            SELECT u.user_id, u.role_id, u.id_number AS student_id_number, u.first_name, u.last_name,
                    u.email, u.phone_number, u.created_at,
                    r.role_name, s.staff_id, s.position, s.shift_schedule
             FROM users u
@@ -45,12 +45,22 @@ const UserModel = {
         return rows;
     },
 
+    getCustomers: async () => {
+        const [rows] = await db.query(`
+            SELECT u.user_id, u.first_name, u.last_name
+            FROM users u
+            INNER JOIN roles r ON r.role_id = u.role_id
+            WHERE r.role_name = 'Student'
+            ORDER BY u.first_name, u.last_name
+        `);
+        return rows;
+    },
+
     getRoles: async () => {
         const [rows] = await db.query('SELECT role_id, role_name FROM roles ORDER BY role_name');
         return rows;
     },
 
-   
     createUser: async (d) => {
         validate(d, true);
         const hash = await hashPassword(d.password);
@@ -59,7 +69,7 @@ const UserModel = {
         try {
             await conn.beginTransaction();
             const [result] = await conn.query(
-                `INSERT INTO users (role_id, student_id_number, first_name, last_name, email, password_hash, phone_number)
+                `INSERT INTO users (role_id, id_number, first_name, last_name, email, password_hash, phone_number)
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [d.role_id, clean(d.student_id_number), t(d.first_name), t(d.last_name), t(d.email), hash, t(d.phone_number)]
             );
@@ -91,13 +101,13 @@ const UserModel = {
             const [[user]] = await conn.query('SELECT user_id FROM users WHERE user_id = ? FOR UPDATE', [id]);
             if (!user) throw new UserError('User not found.', 404);
 
-            const sets = ['role_id = ?', 'student_id_number = ?', 'first_name = ?', 'last_name = ?', 'email = ?', 'phone_number = ?'];
+            const sets = ['role_id = ?', 'id_number = ?', 'first_name = ?', 'last_name = ?', 'email = ?', 'phone_number = ?'];
             const params = [d.role_id, clean(d.student_id_number), t(d.first_name), t(d.last_name), t(d.email), t(d.phone_number)];
             if (hash) {
                 sets.push('password_hash = ?');
                 params.push(hash);
             }
-            await conn.query(UPDATE users SET ${sets.join(', ')} WHERE user_id = ?, [...params, id]);
+            await conn.query(`UPDATE users SET ${sets.join(', ')} WHERE user_id = ?`, [...params, id]);
 
             const [[staff]] = await conn.query('SELECT staff_id FROM staff WHERE user_id = ?', [id]);
             const position = clean(d.position);
