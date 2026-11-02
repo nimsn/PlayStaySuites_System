@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Check-in Logs | PlayStaySuites</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <nav id="nav"></nav>
 <main id="app"></main>
-<script src="frontend/app.js"></script>
+<script src="app.js"></script>
 <script>
 initCrud({
   title: 'Check-in Logs',
+  subtitle: 'Every room status change, with who made it. Rooms with no activity are listed too.',
   endpoint: '/logs',
   idKey: 'log_id',
   canEdit: false,
