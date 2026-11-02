@@ -4,24 +4,80 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bookings | PlayStaySuites</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <nav id="nav"></nav>
 <main id="app"></main>
-<script src="frontend/app.js"></script>
+<script src="app.js"></script>
 <script>
+
+const currentUser = getCurrentUser();
+const isStudent = currentUser?.role === 'Student';
+
 const FLOW = {
   Reserved: [['Check in', 'Active'], ['Cancel', 'Cancelled']],
-  Active:   [['Check out', 'Completed']],
+  Active: [['Check out', 'Completed']],
+};
+
+const PROMO_FIELD = {
+  key: 'promo_code',
+  label: 'Promo (optional)',
+  type: 'select',
+  required: false,
+  placeholder: 'No promo',
+  from: {
+    url: '/promos/active',
+    value: 'promo_code',
+    label: o => `${o.promo_code} - ${Number(o.discount_percentage)}% off${o.valid_until ? ` (until ${fmt(o.valid_until)})` : ''}`,
+  },
+};
+
+let ROOMS = [], PROMOS = [];
+const lookups = Promise.all([api('/rooms'), isStudent ? Promise.resolve([]) : api('/promos/active')])
+  .then(([rooms, promos]) => { ROOMS = rooms; PROMOS = promos; })
+  .catch(() => {});
+
+const preview = v => {
+  const room = ROOMS.find(r => String(r.room_id) === String(v.room_id));
+  if (!room) return '<span class="mute">Pick a room to see its rate and amenities.</span>';
+
+  const out = [
+    `<div><b>${esc(room.room_number)}</b> &middot; ${esc(room.type_name)} &middot; floor ${esc(room.floor_level)} &middot; up to ${esc(room.max_capacity)} people &middot; ${peso(room.base_rate)}/hour</div>`,
+    `<div class="mute">Amenities: ${room.amenities ? esc(room.amenities) : 'none listed'}</div>`,
+  ];
+  if (room.current_status === 'Maintenance') {
+    out.push('<div class="warn">This room is under maintenance and cannot be booked right now.</div>');
+  }
+
+  const start = new Date(v.check_in_time), end = new Date(v.check_out_time);
+  if (!v.check_in_time || !v.check_out_time || isNaN(start) || isNaN(end) || end <= start) {
+    out.push('<div class="mute">Choose check-in and check-out times to see the price.</div>');
+    return out.join('');
+  }
+
+  const hours = Math.max(1, Math.ceil((end - start) / 36e5));
+  const baseCents = hours * Math.round(Number(room.base_rate) * 100);
+  const promo = PROMOS.find(p => p.promo_code === v.promo_code);
+  const discountCents = promo ? Math.round((baseCents * Number(promo.discount_percentage)) / 100) : 0;
+
+  out.push(`<div>${hours} hour${hours === 1 ? '' : 's'} &times; ${peso(room.base_rate)} = ${peso(baseCents / 100)}</div>`);
+  if (promo) out.push(`<div>Promo ${esc(promo.promo_code)} (-${Number(promo.discount_percentage)}%): -${peso(discountCents / 100)}</div>`);
+  out.push(`<div class="total">Estimated total: ${peso((baseCents - discountCents) / 100)}</div>`);
+  out.push('<small>Estimate only. The final price is calculated when you save.</small>');
+  return out.join('');
 };
 
 initCrud({
   title: 'Bookings',
-  endpoint: '/bookings',     
+  subtitle: isStudent ? 'Choose a room and reservation time. Staff can apply eligible promotions at the front desk.' : 'Create reservations, apply promotions when appropriate, then check guests in and out.',
+  endpoint: '/bookings',
   idKey: 'booking_id',
-  canEdit: false,            
+
+  studentCanAdd: true,
+  canEdit: false,
   canDelete: false,
+
   columns: [
     { key: 'booking_id', label: 'ID' },
     { key: 'customer_name', label: 'Customer' },
@@ -29,22 +85,69 @@ initCrud({
     { key: 'check_in_time', label: 'Check-in', render: r => fmt(r.check_in_time) },
     { key: 'check_out_time', label: 'Check-out', render: r => fmt(r.check_out_time) },
     { key: 'total_amount', label: 'Total', render: r => peso(r.total_amount) },
+    { key: 'promo_code', label: 'Promo', render: r => (r.promo_code ? `${esc(r.promo_code)} <span class="mute">(saved ${peso(r.discount_amount)})</span>` : '<span class="mute">-</span>') },
     { key: 'booking_status', label: 'Status', render: r => badge(r.booking_status) },
   ],
-  fields: [
-    { key: 'user_id', label: 'Customer', type: 'select', from: { url: '/users', value: 'user_id', label: o => `${o.first_name} ${o.last_name}` } },
-    { key: 'room_id', label: 'Room', type: 'select', from: { url: '/rooms', value: 'room_id', label: o => `${o.room_number} (${o.type_name})` } },
+
+  fields: isStudent ? [
+    {
+      key: 'room_id',
+      label: 'Room',
+      type: 'select',
+      from: {
+        url: '/rooms',
+        value: 'room_id',
+        label: o => `${o.room_number} (${o.type_name})`
+      }
+    },
     { key: 'check_in_time', label: 'Check-in time', type: 'datetime-local' },
     { key: 'check_out_time', label: 'Check-out time', type: 'datetime-local' },
+  ] : [
+    {
+      key: 'user_id',
+      label: 'Customer',
+      type: 'select',
+      from: {
+        url: '/users/customers',
+        value: 'user_id',
+        label: o => `${o.first_name} ${o.last_name}`
+      }
+    },
+    {
+      key: 'room_id',
+      label: 'Room',
+      type: 'select',
+      from: {
+        url: '/rooms',
+        value: 'room_id',
+        label: o => `${o.room_number} (${o.type_name})`
+      }
+    },
+    { key: 'check_in_time', label: 'Check-in time', type: 'datetime-local' },
+    { key: 'check_out_time', label: 'Check-out time', type: 'datetime-local' },
+    PROMO_FIELD,
   ],
-  validate: b => (b.check_out_time <= b.check_in_time ? 'Check-out must be after check-in.' : ''),
+
+  validate: b =>
+    (b.check_out_time <= b.check_in_time
+      ? 'Check-out must be after check-in.'
+      : ''),
+
   actions: r => (FLOW[r.booking_status] || []).map(([label, status]) => ({
     label,
     run: async () => {
-      await api(`/bookings/${r.booking_id}/status`, 'PATCH', { booking_status: status });
+      await api(`/bookings/${r.booking_id}/status`, 'PATCH', {
+        booking_status: status
+      });
+
       toast(`Booking ${status.toLowerCase()}`);
     },
   })),
+
+  preview,
+}).then(() => lookups).then(() => {
+  const form = document.getElementById('f');
+  if (form) form.dispatchEvent(new Event('input', { bubbles: true }));
 });
 </script>
 </body>
