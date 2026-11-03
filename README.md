@@ -80,16 +80,6 @@ mysql -u root -p
 SOURCE database/schema.sql;
 SOURCE database/seed.sql;
 
--- The Rooms page needs this table, which is not yet part of schema.sql.
-CREATE TABLE IF NOT EXISTS room_amenities (
-    room_amenity_id INT PRIMARY KEY AUTO_INCREMENT,
-    room_id INT NOT NULL,
-    amenity_id INT NOT NULL,
-    FOREIGN KEY (room_id) REFERENCES rooms(room_id) ON DELETE CASCADE,
-    FOREIGN KEY (amenity_id) REFERENCES amenities(amenity_id) ON DELETE CASCADE,
-    UNIQUE KEY uq_room_amenity (room_id, amenity_id)
-);
-
 EXIT;
 ```
 
@@ -147,8 +137,6 @@ Go to **http://localhost:9000** (use the `PORT` from your `.env` if you changed 
 
 ### **PROJECT STRUCTURE**
 
-*"Member N" refers to the numbers in the Group Roster.*
-
 ```text
 PlayStaySuites_System/
 ├──── .env                                      # Your local settings (git-ignored; create from .env.example)
@@ -158,7 +146,8 @@ PlayStaySuites_System/
 ├──── README.md                                 # Roster, Ownership Matrix, & How to Run
 ├──── database/
 |       ├──── schema.sql                        # Table creation commands
-|       └──── seed.sql                          # Sample data
+|       ├──── seed.sql                          # Sample data
+|       └──── er-diagram.png                    # ER Diagram 
 ├──── backend/                                  # Node.js MVC REST API
 |       ├──── server.js                         # App entry point (also serves the frontend)
 |       ├──── config/
