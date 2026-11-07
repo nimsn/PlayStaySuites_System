@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Users & Staff | PlayStaySuites</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script src="app.js"></script>
+<script>
+initCrud({
+  title: 'Users & Staff',
+  subtitle: 'Customer accounts and staff records. Position and shift only apply to staff.',
+  endpoint: '/users',        // LEFT JOIN: every user (with role), plus staff details when they have a staff record
+  idKey: 'user_id',
+  columns: [
+    { key: 'user_id', label: 'ID' },
+    { key: 'last_name', label: 'Name', render: r => esc(`${r.first_name} ${r.last_name}`) },
+    { key: 'student_id_number', label: 'Student ID', render: r => esc(r.student_id_number || '-') },
+    { key: 'email', label: 'Email' },
+    { key: 'phone_number', label: 'Phone' },
+    { key: 'role_name', label: 'Role', render: r => badge(r.role_name || 'none') },
+    { key: 'position', label: 'Staff position', render: r => r.position ? esc(r.position) : '<span class="mute">Not staff</span>' },
+  ],
+  fields: [
+    { key: 'first_name', label: 'First name' },
+    { key: 'last_name', label: 'Last name' },
+    { key: 'student_id_number', label: 'Student ID (optional)', required: false },
+    { key: 'email', label: 'Email', type: 'email' },
+    { key: 'phone_number', label: 'Phone number' },
+    { key: 'role_id', label: 'Role', type: 'select', from: { url: '/users/roles', value: 'role_id', label: o => o.role_name } },
+    { key: 'password', label: 'Password (blank keeps current)', type: 'password', required: false },
+    { key: 'position', label: 'Staff position (staff only)', required: false },
+    { key: 'shift_schedule', label: 'Shift schedule (staff only)', required: false },
+  ],
+});
+</script>
+</body>
+</html>
