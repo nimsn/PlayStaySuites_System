@@ -18,6 +18,7 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/rooms', require('./routes/roomRoutes'));
 app.use('/api/amenities', require('./routes/amenityRoutes'));
 app.use('/api/promos', require('./routes/promoRoutes'));
+app.use('/api/services', require('./routes/serviceRoutes'));
 app.use('/api/bookings', require('./routes/bookingRoutes'));
 app.use('/api/logs', require('./routes/logRoutes'));
 app.use('/api/', require('./routes/billingRoutes'));
@@ -30,6 +31,9 @@ const EXPECTED_COLUMNS = {
     promos: ['promo_code', 'discount_percentage', 'valid_from', 'valid_until'],
     amenities: ['amenity_name', 'description'],
     room_amenities: ['room_id', 'amenity_id'],
+    services: ['service_name', 'unit_price', 'category'],
+    booking_services: ['booking_id', 'service_id', 'quantity', 'subtotal'],
+    invoices: ['voided_at', 'voided_by', 'void_reason'],
 };
 
 async function checkDatabase() {
@@ -48,10 +52,9 @@ async function checkDatabase() {
 
         if (missing.length) {
             console.warn(`\n!! Connected to database "${dbName}", but it is missing: ${missing.join(', ')}`);
-            console.warn('!! Room amenity assignment requires database/migration_room_amenities.sql.');
-            console.warn('!! Apply the missing migration before using the Rooms amenity editor.\n');
+            console.warn('!! Re-import database/schema.sql, or run database/migration_complete_resources.sql once on an existing database.\n');
         } else {
-            console.log(`Database check OK ("${dbName}": promos, amenities and room rates are all in place).`);
+            console.log(`Database check OK ("${dbName}": promos, amenities, services, invoices and room rates are all in place).`);
         }
     } catch (error) {
         console.error(`\n!! Could not read the database (${error.code || error.message}).`);
