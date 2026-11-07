@@ -20,6 +20,46 @@ const toSql = (v) => {
 };
 const toDate = (sql) => new Date(sql.replace(' ', 'T'));
 
+const cancelInTx = async (conn, booking, staffId, { actor = 'staff', userId = null, reason = null } = {}) => {
+    const bookingId = booking.booking_id;
+
+    const [invoices] = await conn.query(
+        "SELECT invoice_id FROM invoices WHERE booking_id = ? AND invoice_status <> 'Void' FOR UPDATE",
+        [bookingId]
+    );
+    for (const inv of invoices) {
+        const [[{ paid }]] = await conn.query(
+            'SELECT COALESCE(SUM(amount_paid), 0) AS paid FROM payments WHERE invoice_id = ?',
+            [inv.invoice_id]
+        );
+        if (Number(paid) > 0) {
+            throw new BookingError(`Invoice #${inv.invoice_id} already has payments. Refund it before cancelling booking #${bookingId}.`, 409);
+        }
+    }
+    for (const inv of invoices) {
+        await conn.query(
+            `UPDATE invoices SET invoice_status = 'Void', voided_at = NOW(), voided_by = ?, void_reason = ?
+             WHERE invoice_id = ?`,
+            [userId, `Booking #${bookingId} cancelled`, inv.invoice_id]
+        );
+    }
+
+    await conn.query("UPDATE bookings SET booking_status = 'Cancelled' WHERE booking_id = ?", [bookingId]);
+
+    const note = reason === null || reason === undefined ? '' : String(reason).trim();
+    await conn.query(
+        `INSERT INTO room_status_logs (room_id, staff_id, previous_status, new_status, remarks)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+            booking.room_id,
+            staffId,
+            booking.booking_status,
+            'Cancelled',
+            `Booking #${bookingId} cancelled by ${actor}${note ? `: ${note}` : ''}`.slice(0, 500),
+        ]
+    );
+};
+
 const BookingModel = {
     BookingError,
 
@@ -127,7 +167,12 @@ const BookingModel = {
         }
     },
 
-    updateStatus: async (bookingId, newStatus, staffId = null) => {
+    findStaffId: async (userId) => {
+        const [[row]] = await db.query('SELECT staff_id FROM staff WHERE user_id = ? LIMIT 1', [userId]);
+        return row ? row.staff_id : null;
+    },
+
+    updateStatus: async (bookingId, newStatus, staffId = null, ctx = {}) => {
         if (!Object.keys(FLOW).includes(newStatus)) throw new BookingError('Invalid booking_status.');
 
         const conn = await db.getConnection();
@@ -139,8 +184,17 @@ const BookingModel = {
                 [bookingId]
             );
             if (!booking) throw new BookingError('Booking not found.', 404);
+            if (booking.booking_status === newStatus) {
+                throw new BookingError(`Booking #${booking.booking_id} is already ${newStatus}.`, 409);
+            }
             if (!FLOW[booking.booking_status].includes(newStatus)) {
                 throw new BookingError(`A ${booking.booking_status} booking cannot become ${newStatus}.`, 409);
+            }
+
+            if (newStatus === 'Cancelled') {
+                await cancelInTx(conn, booking, staffId, ctx);
+                await conn.commit();
+                return;
             }
 
             const [[room]] = await conn.query('SELECT current_status FROM rooms WHERE room_id = ? FOR UPDATE', [booking.room_id]);
@@ -180,7 +234,8 @@ const BookingModel = {
             SELECT b.booking_id, b.user_id, b.room_id, b.staff_id,
                    CONCAT(u.first_name, ' ', u.last_name) AS customer_name,
                    r.room_number, b.check_in_time, b.check_out_time,
-                   b.total_amount, b.promo_id, p.promo_code, b.discount_amount, b.booking_status
+                   b.total_amount, b.promo_id, p.promo_code, b.discount_amount, b.booking_status,
+                   COALESCE((SELECT SUM(bs.subtotal) FROM booking_services bs WHERE bs.booking_id = b.booking_id), 0) AS services_total
             FROM bookings b
             INNER JOIN users u ON b.user_id = u.user_id
             INNER JOIN rooms r ON b.room_id = r.room_id
@@ -189,13 +244,13 @@ const BookingModel = {
         `);
         return rows;
     },
-
     getBookingsByUser: async (userId) => {
         const [rows] = await db.query(`
             SELECT b.booking_id, b.user_id, b.room_id, b.staff_id,
                 CONCAT(u.first_name, ' ', u.last_name) AS customer_name,
                 r.room_number, b.check_in_time, b.check_out_time,
-                b.total_amount, b.promo_id, p.promo_code, b.discount_amount, b.booking_status
+                b.total_amount, b.promo_id, p.promo_code, b.discount_amount, b.booking_status,
+                COALESCE((SELECT SUM(bs.subtotal) FROM booking_services bs WHERE bs.booking_id = b.booking_id), 0) AS services_total
             FROM bookings b
             INNER JOIN users u ON b.user_id = u.user_id
             INNER JOIN rooms r ON b.room_id = r.room_id
@@ -206,7 +261,6 @@ const BookingModel = {
 
         return rows;
     },
-    
     getActiveBookingsReport: async () => {
         const [rows] = await db.query(`
             SELECT b.booking_id, CONCAT(u.first_name, ' ', u.last_name) AS customer_name,

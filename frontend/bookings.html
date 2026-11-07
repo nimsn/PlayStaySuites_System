@@ -9,6 +9,20 @@
 <body>
 <nav id="nav"></nav>
 <main id="app"></main>
+
+<dialog id="svcDlg" class="dialog" aria-labelledby="svcTitle">
+  <div class="dialog-head">
+    <h2 id="svcTitle">Services</h2>
+    <button type="button" class="btn sm ghost" id="svcClose">Close</button>
+  </div>
+  <div id="svcList" class="dialog-body"></div>
+  <form id="svcForm" class="dialog-form">
+    <label>Service<select id="svcSelect" required></select></label>
+    <label>Quantity<input id="svcQty" type="number" min="1" max="99" step="1" value="1" required></label>
+    <button class="btn" id="svcAdd">Add</button>
+  </form>
+</dialog>
+
 <script src="app.js"></script>
 <script>
 
@@ -16,7 +30,7 @@ const currentUser = getCurrentUser();
 const isStudent = currentUser?.role === 'Student';
 
 const FLOW = {
-  Reserved: [['Check in', 'Active'], ['Cancel', 'Cancelled']],
+  Reserved: [['Check in', 'Active']],
   Active: [['Check out', 'Completed']],
 };
 
@@ -76,7 +90,14 @@ initCrud({
 
   studentCanAdd: true,
   canEdit: false,
-  canDelete: false,
+  canDelete: r => r.booking_status === 'Reserved',
+  deleteLabel: 'Cancel booking',
+  onDelete: async r => {
+    const reason = prompt(`Cancel booking #${r.booking_id}?\nReason (optional). Press OK to cancel the booking, or Cancel to keep it.`, '');
+    if (reason === null) return false;
+    await api(`/bookings/${r.booking_id}`, 'DELETE', { reason: reason.trim() });
+    toast('Booking cancelled');
+  },
 
   columns: [
     { key: 'booking_id', label: 'ID' },
@@ -84,7 +105,8 @@ initCrud({
     { key: 'room_number', label: 'Room' },
     { key: 'check_in_time', label: 'Check-in', render: r => fmt(r.check_in_time) },
     { key: 'check_out_time', label: 'Check-out', render: r => fmt(r.check_out_time) },
-    { key: 'total_amount', label: 'Total', render: r => peso(r.total_amount) },
+    { key: 'total_amount', label: 'Room total', render: r => peso(r.total_amount) },
+    { key: 'services_total', label: 'Add-ons', render: r => (Number(r.services_total) ? peso(r.services_total) : '<span class="mute">-</span>') },
     { key: 'promo_code', label: 'Promo', render: r => (r.promo_code ? `${esc(r.promo_code)} <span class="mute">(saved ${peso(r.discount_amount)})</span>` : '<span class="mute">-</span>') },
     { key: 'booking_status', label: 'Status', render: r => badge(r.booking_status) },
   ],
@@ -133,22 +155,101 @@ initCrud({
       ? 'Check-out must be after check-in.'
       : ''),
 
-  actions: r => (FLOW[r.booking_status] || []).map(([label, status]) => ({
-    label,
-    run: async () => {
-      await api(`/bookings/${r.booking_id}/status`, 'PATCH', {
-        booking_status: status
-      });
+  actions: r => [
+    ...(FLOW[r.booking_status] || []).map(([label, status]) => ({
+      label,
+      run: async () => {
+        await api(`/bookings/${r.booking_id}/status`, 'PATCH', {
+          booking_status: status
+        });
 
-      toast(`Booking ${status.toLowerCase()}`);
-    },
-  })),
+        toast(`Booking ${status.toLowerCase()}`);
+      },
+    })),
+    ...(['Reserved', 'Active'].includes(r.booking_status)
+      ? [{ label: 'Services', run: () => openServices(r) }]
+      : []),
+  ],
 
   preview,
-}).then(() => lookups).then(() => {
+}).then(ctrl => {
+  if (ctrl) reloadTable = ctrl.reload;
+  return lookups;
+}).then(() => {
   const form = document.getElementById('f');
   if (form) form.dispatchEvent(new Event('input', { bubbles: true }));
 });
+
+let reloadTable = () => {};
+let openBookingId = null;
+const dlg = document.getElementById('svcDlg');
+const svcList = document.getElementById('svcList');
+const svcSelect = document.getElementById('svcSelect');
+const svcAdd = document.getElementById('svcAdd');
+
+async function renderServiceLines() {
+  svcList.innerHTML = `<div class="page-loading" role="status">${spinner('Loading services…')}</div>`;
+  try {
+    const lines = await api(`/bookings/${openBookingId}/services`);
+    if (!lines.length) {
+      svcList.innerHTML = '<p class="mute">No add-on services on this booking yet.</p>';
+      return;
+    }
+    const total = lines.reduce((sum, l) => sum + Number(l.subtotal), 0);
+    svcList.innerHTML = `<table><thead><tr><th>Service</th><th>Qty</th><th>Subtotal</th><th></th></tr></thead><tbody>${lines.map(l => `
+      <tr><td data-label="Service">${esc(l.service_name)} <span class="mute">${peso(l.unit_price)} each</span></td>
+      <td data-label="Qty">${esc(l.quantity)}</td>
+      <td data-label="Subtotal">${peso(l.subtotal)}</td>
+      <td class="acts"><button type="button" class="btn sm danger" data-line="${esc(l.booking_service_id)}">Remove</button></td></tr>`).join('')}
+      <tr><td colspan="2"><b>Add-ons total</b></td><td colspan="2"><b>${peso(total)}</b></td></tr></tbody></table>`;
+  } catch (err) {
+    svcList.innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+async function openServices(booking) {
+  openBookingId = booking.booking_id;
+  document.getElementById('svcTitle').textContent = `Services for booking #${booking.booking_id} (${booking.room_number})`;
+  svcSelect.innerHTML = '<option value="">Loading…</option>';
+  dlg.showModal();
+  renderServiceLines();
+  try {
+    const catalog = await api('/services');
+    svcSelect.innerHTML = '<option value="">Choose a service…</option>' +
+      catalog.map(s => `<option value="${esc(s.service_id)}">${esc(s.service_name)} - ${peso(s.unit_price)}</option>`).join('');
+  } catch (err) {
+    svcSelect.innerHTML = `<option value="" disabled>${esc(err.message)}</option>`;
+  }
+}
+
+document.getElementById('svcForm').onsubmit = async e => {
+  e.preventDefault();
+  svcAdd.disabled = true; svcAdd.textContent = 'Adding…';
+  try {
+    const res = await api(`/bookings/${openBookingId}/services`, 'POST', {
+      service_id: Number(svcSelect.value),
+      quantity: Number(document.getElementById('svcQty').value),
+    });
+    toast(res.hint || 'Service added to booking.');
+    document.getElementById('svcQty').value = 1;
+    await renderServiceLines();
+  } catch (err) { toast(err.message, true); }
+  finally { svcAdd.disabled = false; svcAdd.textContent = 'Add'; }
+};
+
+svcList.onclick = async e => {
+  const b = e.target.closest('button[data-line]');
+  if (!b) return;
+  b.disabled = true;
+  try {
+    const res = await api(`/bookings/${openBookingId}/services/${b.dataset.line}`, 'DELETE');
+    toast(res.hint || 'Service removed.');
+    await renderServiceLines();
+  } catch (err) { toast(err.message, true); b.disabled = false; }
+};
+
+document.getElementById('svcClose').onclick = () => dlg.close();
+dlg.addEventListener('close', () => reloadTable()); 
 </script>
 </body>
 </html>
