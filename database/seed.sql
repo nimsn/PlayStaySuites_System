@@ -63,10 +63,6 @@ INSERT INTO bookings (booking_id, user_id, room_id, staff_id, check_in_time, che
 (505, 117254, 4, 045, '2026-10-28 09:00:00', '2026-10-28 11:00:00', 500.00, NULL, NULL, 'Reserved'),
 (506, 117223, 5, 048, '2026-10-24 14:00:00', '2026-10-24 16:00:00', 1100.00, NULL, NULL, 'Cancelled');
 
-INSERT INTO booking_amenities (booking_amenity_id, booking_id, amenity_id) VALUES
-(9980, 501, 210),
-(9981, 504, 205);
-
 INSERT INTO booking_services (booking_service_id, booking_id, service_id, quantity, subtotal) VALUES 
 (8890, 501, 24, 5, 375.00),
 (8891, 504, 25, 3, 150.00);

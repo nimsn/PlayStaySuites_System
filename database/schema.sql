@@ -95,15 +95,6 @@ CREATE TABLE bookings (
     FOREIGN KEY (promo_id) REFERENCES promos(promo_id) ON DELETE SET NULL
 );
 
-CREATE TABLE booking_amenities (
-    booking_amenity_id INT PRIMARY KEY AUTO_INCREMENT,
-    booking_id INT NOT NULL,
-    amenity_id INT NOT NULL,
-    FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
-    FOREIGN KEY (amenity_id) REFERENCES amenities(amenity_id) ON DELETE CASCADE,
-    UNIQUE KEY uq_booking_amenity (booking_id, amenity_id)
-);
-
 CREATE TABLE booking_services (
     booking_service_id INT PRIMARY KEY AUTO_INCREMENT,
     booking_id INT NOT NULL,
