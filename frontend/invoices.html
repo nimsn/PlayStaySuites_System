@@ -17,13 +17,20 @@ const METHODS = { cash: 'Cash', gcash: 'GCash', card: 'Credit Card', 'credit car
 
 initCrud({
   title: 'Invoices & Payments',
-  subtitle: 'Generate invoices for bookings that have not been billed yet, then record payments and track balances.',
+  subtitle: 'Generate invoices for bookings that have not been billed yet, recalculate them when services are added, record payments, and void invoices that were issued by mistake.',
   submitLabel: 'Generate invoice',
   successMessage: 'Invoice generated successfully.',
   endpoint: '/invoices',
   idKey: 'invoice_id',
   canEdit: false,
-  canDelete: false,
+  canDelete: r => r.invoice_status === 'Unpaid' && Number(r.amount_paid) === 0,
+  deleteLabel: 'Void',
+  onDelete: async r => {
+    const reason = prompt(`Void invoice #${r.invoice_id}?\nReason (optional). Press OK to void it, or Cancel to keep it.`, '');
+    if (reason === null) return false;
+    await api(`/invoices/${r.invoice_id}`, 'DELETE', { reason: reason.trim() });
+    toast('Invoice voided');
+  },
   columns: [
     { key: 'invoice_id', label: 'Invoice' },
     { key: 'booking_id', label: 'Booking', render: r => (r.booking_id ? '#' + esc(r.booking_id) : '') },
@@ -33,7 +40,7 @@ initCrud({
     { key: 'total_due', label: 'Total due', render: r => peso(r.total_due) },
     { key: 'amount_paid', label: 'Paid', render: r => peso(r.amount_paid) },
     { key: 'balance', label: 'Balance', render: r => peso(balance(r)) },
-    { key: 'invoice_status', label: 'Status', render: r => badge(shown(r)) },
+    { key: 'invoice_status', label: 'Status', render: r => badge(shown(r)) + (r.invoice_status === 'Void' && r.void_reason ? `<small class="mute">${esc(r.void_reason)}</small>` : '') },
   ],
   fields: [
     { key: 'booking_id', label: 'Booking to invoice', type: 'select', placeholder: 'Choose an eligible booking', empty: 'No bookings are waiting for an invoice.', help: 'Only non-cancelled bookings without an existing invoice are listed.', from: { url: '/invoices/eligible-bookings', value: 'booking_id', label: o => `#${o.booking_id} · ${o.customer_name} · Room ${o.room_number} · ${peso(o.total_amount)}` } },
@@ -46,6 +53,14 @@ initCrud({
       : '<span class="mute">Select a booking to review it before generating an invoice.</span>';
   },
   actions: r => (r.invoice_status !== 'Unpaid' ? [] : [{
+    label: 'Recalculate',
+    run: async () => {
+      const res = await api(`/invoices/${r.invoice_id}`, 'PUT');
+      toast(Number(res.total_due) === Number(res.previous_total)
+        ? 'Invoice is already up to date.'
+        : `Total updated: ${peso(res.previous_total)} to ${peso(res.total_due)}`);
+    },
+  }, {
     label: 'Record payment',
     run: async () => {
       const amount = prompt(`Payment amount (balance ${peso(balance(r))})`);
