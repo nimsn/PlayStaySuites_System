@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-in Logs | PlayStaySuites</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script src="app.js"></script>
+<script>
+initCrud({
+  title: 'Check-in Logs',
+  subtitle: 'Every room status change, with who made it. Rooms with no activity are listed too.',
+  endpoint: '/logs',
+  idKey: 'log_id',
+  canEdit: false,
+  canDelete: false,
+  columns: [
+    { key: 'room_number', label: 'Room' },
+    { key: 'previous_status', label: 'From', render: r => (r.previous_status ? badge(r.previous_status) : '') },
+    { key: 'new_status', label: 'To', render: r => (r.new_status ? badge(r.new_status) : '<span class="mute">No activity</span>') },
+    { key: 'changed_at', label: 'When', render: r => fmt(r.changed_at) },
+    { key: 'staff_name', label: 'Staff', render: r => esc(r.staff_name || '-') },
+    { key: 'remarks', label: 'Remarks', render: r => esc(r.remarks || '') },
+  ],
+  fields: [
+    { key: 'room_id', label: 'Room', type: 'select', from: { url: '/rooms', value: 'room_id', label: o => o.room_number } },
+    { key: 'new_status', label: 'New status', type: 'select', options: ['Available', 'Occupied', 'Maintenance', 'Cleaning'] },
+    { key: 'remarks', label: 'Remarks (optional)', required: false },
+  ],
+});
+</script>
+</body>
+</html>
