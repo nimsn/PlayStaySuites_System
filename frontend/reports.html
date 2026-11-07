@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports | PlayStaySuites</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav id="nav"></nav>
+<main id="app"></main>
+<script src="app.js"></script>
+<script>
+const none = text => `<span class="mute">${text}</span>`;
+const REPORTS = [
+  {
+    key: 'users', label: 'Inactive users', join: 'LEFT JOIN', roles: ['Admin'],
+    url: '/users/reports/inactive',
+    tables: 'users + bookings',
+    about: 'Users who have never made a booking. The LEFT JOIN keeps every user, and the ones with no matching booking are the result.',
+    columns: [
+      { key: 'user_id', label: 'ID' },
+      { key: 'full_name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone_number', label: 'Phone' },
+      { key: 'role_name', label: 'Role', render: r => badge(r.role_name) },
+      { key: 'created_at', label: 'Joined', render: r => fmt(r.created_at) },
+    ],
+  },
+  {
+    key: 'rooms', label: 'Room details', join: 'INNER JOIN', roles: ['Admin', 'Staff'],
+    url: '/rooms/reports/details',
+    tables: 'rooms + room_types',
+    about: 'Every room with its type, rate and capacity. The INNER JOIN only returns rooms that have a room type.',
+    columns: [
+      { key: 'room_number', label: 'Room' },
+      { key: 'type_name', label: 'Type' },
+      { key: 'floor_level', label: 'Floor' },
+      { key: 'base_rate', label: 'Rate per hour', render: r => peso(r.base_rate) },
+      { key: 'max_capacity', label: 'Max capacity' },
+      { key: 'current_status', label: 'Status', render: r => badge(r.current_status) },
+    ],
+  },
+  {
+    key: 'bookings', label: 'Active bookings', join: 'INNER JOIN', roles: ['Admin', 'Staff'],
+    url: '/bookings/reports/active',
+    tables: 'bookings + users + rooms',
+    about: 'Guests who are checked in right now, with their room. Only bookings that match both a user and a room are returned.',
+    columns: [
+      { key: 'booking_id', label: 'Booking', render: r => '#' + esc(r.booking_id) },
+      { key: 'customer_name', label: 'Customer' },
+      { key: 'room_number', label: 'Room' },
+      { key: 'check_in_time', label: 'Check-in', render: r => fmt(r.check_in_time) },
+      { key: 'check_out_time', label: 'Check-out', render: r => fmt(r.check_out_time) },
+      { key: 'booking_status', label: 'Status', render: r => badge(r.booking_status) },
+    ],
+  },
+  {
+    key: 'audit', label: 'Room audit trail', join: 'RIGHT JOIN', roles: ['Admin', 'Staff'],
+    url: '/logs/audit-report',
+    tables: 'room_status_logs + rooms',
+    about: 'Every room with its status history. The RIGHT JOIN keeps rooms that have no log entries yet (highlighted).',
+    unmatched: r => !r.log_id,
+    columns: [
+      { key: 'room_number', label: 'Room' },
+      { key: 'previous_status', label: 'From', render: r => (r.previous_status ? badge(r.previous_status) : '') },
+      { key: 'new_status', label: 'To', render: r => (r.new_status ? badge(r.new_status) : none('No activity')) },
+      { key: 'changed_at', label: 'When', render: r => fmt(r.changed_at) },
+      { key: 'staff_name', label: 'Staff', render: r => esc(r.staff_name || '-') },
+      { key: 'remarks', label: 'Remarks', render: r => esc(r.remarks || '') },
+    ],
+  },
+  {
+    key: 'billing', label: 'Invoice reconciliation', join: 'FULL OUTER JOIN', roles: ['Admin', 'Staff'],
+    url: '/reports/reconciliation',
+    tables: 'invoices + payments',
+    about: 'Invoices and payments side by side. The FULL OUTER JOIN also shows invoices with no payment yet (highlighted) and any payment with no invoice.',
+    unmatched: r => !r.payment_id || !r.invoice_id,
+    columns: [
+      { key: 'invoice_id', label: 'Invoice', render: r => (r.invoice_id ? '#' + esc(r.invoice_id) : none('No invoice')) },
+      { key: 'total_due', label: 'Total due', render: r => (r.invoice_id ? peso(r.total_due) : '') },
+      { key: 'invoice_status', label: 'Invoice status', render: r => (r.invoice_status ? badge(r.invoice_status) : '') },
+      { key: 'payment_id', label: 'Payment', render: r => (r.payment_id ? '#' + esc(r.payment_id) : none('No payment')) },
+      { key: 'payment_method', label: 'Method', render: r => esc(r.payment_method || '') },
+      { key: 'amount_paid', label: 'Amount paid', render: r => (r.payment_id ? peso(r.amount_paid) : '') },
+      { key: 'paid_at', label: 'Paid at', render: r => fmt(r.paid_at) },
+    ],
+  },
+];
+
+(function init() {
+  if (!requireAuth()) return;
+  if (renderNav() === false) return;
+
+  const user = getCurrentUser();
+  const available = REPORTS.filter(r => r.roles.includes(user.role));
+  const app = document.getElementById('app');
+  let current = available.find(r => '#' + r.key === location.hash) || available[0];
+  let token = 0;
+
+  app.innerHTML = `
+    <div class="head"><div><h1>Reports</h1>
+      <p class="sub">The five join reports. Each one runs its query on the server and shows the result here.</p></div></div>
+    <div class="report-tabs" id="tabs" role="tablist"></div>
+    <div class="report-info" id="info"></div>
+    <div class="card scroll"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>`;
+
+  const drawTabs = () => {
+    document.getElementById('tabs').innerHTML = available.map(r =>
+      `<button type="button" role="tab" aria-selected="${r === current}" class="btn sm${r === current ? '' : ' ghost'}" data-key="${r.key}">${esc(r.label)}</button>`
+    ).join('');
+  };
+
+  async function show() {
+    const mine = ++token;
+    const rep = current;
+    const span = rep.columns.length;
+    drawTabs();
+    document.getElementById('info').innerHTML =
+      `<span class="join-tag">${esc(rep.join)}</span><p><b>${esc(rep.tables)}</b>. ${esc(rep.about)}</p><span class="report-count" id="count"></span>`;
+    document.getElementById('th').innerHTML = `<tr>${rep.columns.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr>`;
+    document.getElementById('tb').innerHTML =
+      `<tr class="loading-row"><td colspan="${span}" class="empty" role="status"><div class="loading-inline">${spinner('Running report…')}</div></td></tr>`;
+
+    try {
+      const rows = await api(rep.url);
+      if (mine !== token) return;
+      document.getElementById('count').textContent = `${rows.length} row${rows.length === 1 ? '' : 's'}`;
+      document.getElementById('tb').innerHTML = rows.length
+        ? rows.map(r => `<tr${rep.unmatched && rep.unmatched(r) ? ' class="unmatched"' : ''}>${rep.columns.map(c =>
+            `<td data-label="${esc(c.label)}">${c.render ? c.render(r) : esc(r[c.key] ?? '')}</td>`).join('')}</tr>`).join('')
+        : `<tr><td colspan="${span}" class="empty">This report has no rows.</td></tr>`;
+    } catch (err) {
+      if (mine !== token) return;
+      document.getElementById('tb').innerHTML =
+        `<tr><td colspan="${span}" class="empty error">Could not run report: ${esc(err.message)}<br><button type="button" class="btn sm ghost" data-retry>Try again</button></td></tr>`;
+      toast(err.message, true);
+    }
+  }
+
+  document.getElementById('tabs').onclick = e => {
+    const b = e.target.closest('button[data-key]');
+    if (!b) return;
+    current = available.find(r => r.key === b.dataset.key);
+    history.replaceState(null, '', '#' + current.key);
+    show();
+  };
+  document.getElementById('tb').onclick = e => { if (e.target.closest('[data-retry]')) show(); };
+
+  show();
+})();
+</script>
+</body>
+</html>

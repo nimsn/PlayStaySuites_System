@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Welcome | PlayStaySuites</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .auth-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            min-height: 100vh;
+            width: 100%;
+            background: #0f172a;
+        }
+        .auth-hero-side {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(30, 58, 138, 0.9)), url('https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80') center/cover;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            color: white;
+        }
+        .auth-hero-side h2 {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #ffffff;
+            margin-top: 20px;
+        }
+        .auth-hero-side p {
+            color: #94a3b8;
+            font-size: 15px;
+            margin-top: 10px;
+        }
+        .auth-form-side {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            padding: 40px;
+        }
+        .auth-card-modern {
+            width: 100%;
+            max-width: 440px;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--line);
+        }
+        .auth-segmented-control {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+        .segment-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--mute);
+            cursor: pointer;
+            border-radius: 9px;
+            transition: all 0.25s ease;
+        }
+        .segment-btn.active {
+            background: #ffffff;
+            color: var(--accent);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .auth-footer-text {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 13px;
+            color: var(--mute);
+        }
+        @media(max-width: 900px) {
+            .auth-wrapper { grid-template-columns: 1fr; }
+            .auth-hero-side { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-wrapper">
+        <div class="auth-hero-side">
+            <div class="logo" style="font-size: 24px;">Play<span>Stay</span>Suites</div>
+            <div>
+                <span class="badge" style="background: rgba(255,255,255,0.1); color: #93c5fd; margin-bottom: 12px;">Premium Hospitality Hub</span>
+                <h2>Experience comfort, focus & entertainment in every stay.</h2>
+                <p>Manage reservations, explore luxury study pods, rest capsules, and KTV suites seamlessly.</p>
+            </div>
+            <p style="font-size: 12px; color: #64748b;">&copy; 2026 PlayStaySuites System. All rights reserved.</p>
+        </div>
+
+        <div class="auth-form-side">
+            <div class="auth-card-modern">
+                <div style="margin-bottom: 20px;">
+                    <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 6px;">Get Started</h2>
+                    <p style="color: var(--mute); font-size: 14px;">Sign in or create your account to proceed.</p>
+                </div>
+
+                <div class="auth-segmented-control">
+                    <button class="segment-btn active" id="loginSegment" onclick="switchAuthMode('login')">Sign In</button>
+                    <button class="segment-btn" id="registerSegment" onclick="switchAuthMode('register')">Create Account</button>
+                </div>
+                
+                <form id="signInForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom:6px; font-size:13px; font-weight:500; color:var(--mute);">Email Address</label>
+                        <input type="email" id="loginEmail" required placeholder="name@example.com" style="width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label style="display:block; margin-bottom:6px; font-size:13px; font-weight:500; color:var(--mute);">Password</label>
+                        <input type="password" id="loginPassword" required placeholder="••••••••" style="width: 100%;">
+                    </div>
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Sign In to Portal</button>
+                </form>
+
+            <form id="signUpForm" style="display: none;" onsubmit="handleRegister(event)">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" class="form-group">
+                    <div>
+                        <label for="regFirst" style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--mute);">First Name</label>
+                        <input type="text" id="regFirst" required placeholder="John" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label for="regLast" style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--mute);">Last Name</label>
+                        <input type="text" id="regLast" required placeholder="Doe" style="width: 100%;">
+                    </div>
+                </div>
+
+                <div class="form-group" id="studentIdGroup">
+                    <label for="regStudentId" style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--mute);">Student ID Number</label>
+                    <input type="text" id="regStudentId" placeholder="2026-12345" style="width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label for="regEmail" style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--mute);">Email Address</label>
+                    <input type="email" id="regEmail" required placeholder="name@example.com" style="width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label for="regPhone" style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--mute);">Phone Number</label>
+                    <input type="text" id="regPhone" required placeholder="09123456789" style="width: 100%;">
+                </div>
+
+                <div class="form-group">
+                    <label for="regPassword" style="display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: var(--mute);">Password</label>
+                    <input type="password" id="regPassword" required placeholder="Create a secure password" style="width: 100%;">
+                </div>
+
+                <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Complete Registration</button>
+            </form>
+
+                <div class="auth-footer-text">
+                    Protected by secure role-based access control.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchAuthMode(mode) {
+            const loginBtn = document.getElementById('loginSegment');
+            const registerBtn = document.getElementById('registerSegment');
+            const signInForm = document.getElementById('signInForm');
+            const signUpForm = document.getElementById('signUpForm');
+
+            if (mode === 'login') {
+                loginBtn.classList.add('active');
+                registerBtn.classList.remove('active');
+                signInForm.style.display = 'block';
+                signUpForm.style.display = 'none';
+            } else {
+                registerBtn.classList.add('active');
+                loginBtn.classList.remove('active');
+                signUpForm.style.display = 'block';
+                signInForm.style.display = 'none';
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const label = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in…';
+
+            try {
+                const response = await fetch('/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    })
+            });
+
+            const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || data.message || 'Login failed.');
+                }
+
+                sessionStorage.setItem('authToken', data.token);
+                sessionStorage.setItem('currentUser', JSON.stringify(data.user));
+
+                alert(`Welcome, ${data.user.role}!`);
+
+                window.location.href = 'index.html';
+
+            } catch (error) {
+                console.error('Login error:', error);
+                alert(error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = label;
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            
+            const firstName = document.getElementById('regFirst').value.trim();
+            const lastName = document.getElementById('regLast').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const phone = document.getElementById('regPhone').value.trim();
+            const password = document.getElementById('regPassword').value;
+            
+            const studentId = document.getElementById('regStudentId').value.trim();
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const label = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating account…';
+
+            try {
+                const response = await fetch('/api/users/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: email,
+                        phone_number: phone,
+                        password: password,
+                        student_id_number: studentId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || data.message || 'Registration failed.');
+                }
+
+                alert('Account registered successfully! You can now sign in.');
+                switchAuthMode('login');
+                document.getElementById('loginEmail').value = email;
+
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = label;
+            }
+        }
+    </script>
+</body>
+</html>

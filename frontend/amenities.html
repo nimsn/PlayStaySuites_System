@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Amenities | PlayStaySuites</title><link rel="stylesheet" href="style.css"></head>
+<body><nav id="nav"></nav><main id="app"></main><script src="app.js"></script><script>
+initCrud({
+  title: 'Amenities',
+  subtitle: 'Admin and Staff maintain the amenity catalog. Assign amenities to rooms from the Rooms page; customers do not add amenities during booking.',
+  endpoint: '/amenities', idKey: 'amenity_id',
+  columns: [
+    { key: 'amenity_id', label: 'ID' },
+    { key: 'amenity_name', label: 'Amenity' },
+    { key: 'price', label: 'Price', render: r => peso(r.price) },
+    { key: 'description', label: 'Description' }
+  ],
+  fields: [
+    { key: 'amenity_name', label: 'Amenity name' },
+    { key: 'price', label: 'Price', type: 'number', step: '0.01', required: false },
+    { key: 'description', label: 'Description', required: false }
+  ]
+});
+</script></body></html>
