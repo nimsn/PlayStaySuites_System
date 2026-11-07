@@ -108,6 +108,33 @@ td.empty { text-align: center; color: var(--mute); padding: 48px 16px; }
 .badge.admin { background: #ede9fe; color: #5b21b6; }
 .badge.staff { background: #ccfbf1; color: #115e59; }
 
+.spinner { width: 18px; height: 18px; flex: 0 0 auto; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; display: inline-block; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.page-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 72px 16px; color: var(--mute); }
+.loading-inline { display: inline-flex; align-items: center; gap: 10px; }
+td.error { color: var(--bad); line-height: 2; }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.badge.void { background: #f1f5f9; color: #64748b; }
+td small.mute { display: block; max-width: 28ch; white-space: normal; font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } }
+
+.report-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.report-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-bottom: 14px; }
+.report-info p { margin: 0; color: var(--mute); font-size: 14px; }
+.join-tag { display: inline-block; padding: 3px 10px; border-radius: 6px; background: #eff6ff; color: var(--accent-hover); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.report-count { margin-left: auto; color: var(--mute); font-size: 13px; }
+tr.unmatched td { background: #fffbeb; }
+
+dialog.dialog { width: min(600px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; box-shadow: 0 20px 50px rgba(15,23,42,.3); color: var(--ink); }
+dialog.dialog::backdrop { background: rgba(15,23,42,.45); }
+.dialog-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+.dialog-head h2 { margin: 0; }
+.dialog-body { min-height: 72px; margin-bottom: 16px; }
+.dialog-body table { font-size: 14px; }
+.dialog-body td, .dialog-body th { padding: 10px 12px; }
+.dialog-form { display: grid; grid-template-columns: 1fr 110px auto; gap: 12px; align-items: end; padding-top: 16px; border-top: 1px solid var(--line); }
+@media (max-width: 720px) { .dialog-form { grid-template-columns: 1fr; } }
+
 .toast { position: fixed; right: 20px; bottom: 20px; z-index: 50; max-width: 360px; padding: 12px 18px; border-radius: 10px; background: #065f46; color: #fff; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 .toast.bad { background: #991b1b; }
 

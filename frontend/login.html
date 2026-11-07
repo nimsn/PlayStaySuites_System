@@ -193,6 +193,11 @@
             const email = document.getElementById('loginEmail').value.trim();
             const password = document.getElementById('loginPassword').value;
 
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const label = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Signing in…';
+
             try {
                 const response = await fetch('/api/users/login', {
                     method: 'POST',
@@ -221,6 +226,8 @@
             } catch (error) {
                 console.error('Login error:', error);
                 alert(error.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = label;
             }
         }
 
@@ -234,6 +241,11 @@
             const password = document.getElementById('regPassword').value;
             
             const studentId = document.getElementById('regStudentId').value.trim();
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const label = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating account…';
 
             try {
                 const response = await fetch('/api/users/register', {
@@ -261,6 +273,9 @@
 
             } catch (err) {
                 alert(err.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = label;
             }
         }
     </script>

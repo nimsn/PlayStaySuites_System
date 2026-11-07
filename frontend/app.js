@@ -5,10 +5,12 @@ const PAGES = [
   { file: 'users.html', label: 'Users & Staff', roles: ['Admin'] },
   { file: 'rooms.html', label: 'Rooms', roles: ['Admin', 'Staff', 'Student'] },
   { file: 'amenities.html', label: 'Amenities', roles: ['Admin', 'Staff'] },
+  { file: 'services.html', label: 'Services', roles: ['Admin', 'Staff'] },
   { file: 'promos.html', label: 'Promotions', roles: ['Admin', 'Staff'] },
   { file: 'bookings.html', label: 'Bookings', roles: ['Admin', 'Staff', 'Student'] },
   { file: 'checkin_logs.html', label: 'Check-in Logs', roles: ['Admin', 'Staff'] },
   { file: 'invoices.html', label: 'Invoices', roles: ['Admin', 'Staff'] },
+  { file: 'reports.html', label: 'Reports', roles: ['Admin', 'Staff'] },
 ];
 
 function getCurrentUser() {
@@ -42,6 +44,7 @@ function logout() {
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const peso = n => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 });
 const fmt = d => (d ? String(d).replace('T', ' ').slice(0, 16) : '');
+const spinner = (text = 'Loading…') => `<span class="spinner" aria-hidden="true"></span><span>${esc(text)}</span>`;
 const badge = s => `<span class="badge ${esc(String(s).toLowerCase().replace(/\s+/g, '_'))}">${esc(s)}</span>`;
 
 async function api(path, method = 'GET', body) {
@@ -133,6 +136,11 @@ function renderNav() {
 async function initCrud(cfg) {
   if (!requireAuth()) return;
   if (renderNav() === false) return;
+
+  const app = document.querySelector('#app');
+  app.setAttribute('aria-busy', 'true');
+  app.innerHTML = `<div class="page-loading" role="status">${spinner('Loading page…')}</div>`;
+
   cfg.fields = cfg.fields || [];
   const id = cfg.idKey;
   const currentUser = getCurrentUser();
@@ -142,7 +150,7 @@ async function initCrud(cfg) {
       (!isStudent || cfg.studentCanAdd === true);
 
   const canEdit = !isStudent && canAdd && cfg.canEdit !== false;
-  const canDelete = !isStudent && cfg.canDelete !== false;
+  const canDeleteRow = r => !isStudent && (typeof cfg.canDelete === 'function' ? cfg.canDelete(r) : cfg.canDelete !== false);
   const $ = s => document.querySelector(s);
   let rows = [], editId = null;
 
@@ -184,6 +192,7 @@ async function initCrud(cfg) {
       ${cfg.preview ? '<div id="preview" class="preview"></div>' : ''}
       <div class="row"><button class="btn">${esc(cfg.submitLabel || 'Save')}</button><button type="button" class="btn ghost" id="cancel" hidden>Cancel edit</button></div></form>` : ''}
     <div class="card scroll"><table><thead><tr>${cfg.columns.map(c => `<th>${c.label}</th>`).join('')}<th></th></tr></thead><tbody id="tb"></tbody></table></div>`;
+  app.removeAttribute('aria-busy');
 
   const draw = () => {
     const q = $('#q').value.toLowerCase();
@@ -192,13 +201,21 @@ async function initCrud(cfg) {
       ? list.map(r => `<tr>${cfg.columns.map(c => `<td data-label="${esc(c.label)}">${c.render ? c.render(r) : esc(r[c.key])}</td>`).join('')}
           <td class="acts">
             ${(!isStudent && cfg.actions ? cfg.actions(r) : []).map((a, i) => `<button class="btn sm" data-id="${r[id]}" data-a="${i}">${a.label}</button>`).join('')}            ${canEdit ? `<button class="btn sm ghost" data-id="${r[id]}" data-e>Edit</button>` : ''}
-            ${canDelete ? `<button class="btn sm danger" data-id="${r[id]}" data-d>Delete</button>` : ''}
+            ${canDeleteRow(r) ? `<button class="btn sm danger" data-id="${r[id]}" data-d>${esc(cfg.deleteLabel || 'Delete')}</button>` : ''}
           </td></tr>`).join('')
       : `<tr><td colspan="${cfg.columns.length + 1}" class="empty">Nothing here yet.${canAdd ? ' Add the first record above.' : ''}</td></tr>`;
   };
 
+  const colSpan = cfg.columns.length + 1;
   const load = async () => {
-    try { rows = await api(cfg.endpoint); draw(); } catch (e) { toast(e.message, true); }
+    $('#tb').innerHTML = `<tr class="loading-row"><td colspan="${colSpan}" class="empty" role="status"><div class="loading-inline">${spinner('Loading records…')}</div></td></tr>`;
+    try {
+      rows = await api(cfg.endpoint);
+      draw();
+    } catch (e) {
+      $('#tb').innerHTML = `<tr><td colspan="${colSpan}" class="empty error">Could not load records: ${esc(e.message)}<br><button type="button" class="btn sm ghost" data-retry>Try again</button></td></tr>`;
+      toast(e.message, true);
+    }
   };
 
   const form = $('#f');
@@ -282,12 +299,18 @@ async function initCrud(cfg) {
   $('#tb').onclick = async e => {
     const b = e.target.closest('button');
     if (!b) return;
+    if ('retry' in b.dataset) return load();
     const r = rows.find(x => String(x[id]) === b.dataset.id);
+    b.disabled = true; 
     try {
       if ('d' in b.dataset) {
-        if (!confirm('Delete this record?')) return;
-        await api(`${cfg.endpoint}/${r[id]}`, 'DELETE');
-        toast('Deleted');
+        if (cfg.onDelete) {
+          if (await cfg.onDelete(r) === false) return;
+        } else {
+          if (!confirm(cfg.deleteConfirm || 'Delete this record?')) return;
+          await api(`${cfg.endpoint}/${r[id]}`, 'DELETE');
+          toast('Deleted');
+        }
       } else if ('e' in b.dataset) {
         return startEdit(r);
       } else {
@@ -295,6 +318,7 @@ async function initCrud(cfg) {
       }
       await load();
     } catch (err) { toast(err.message, true); }
+    finally { b.disabled = false; }
   };
 
   if (form) {
@@ -309,14 +333,18 @@ async function initCrud(cfg) {
       refreshPreview();
     });
     form.addEventListener('change', () => { updateMultiSummaries(); refreshPreview(); });
-    form.addEventListener('reset', () => setTimeout(refreshPreview)); // the reset event fires before the values clear
+    form.addEventListener('reset', () => setTimeout(refreshPreview));
     updateMultiSummaries();
     refreshPreview();
+    const submitBtn = form.querySelector('.row button:not([type="button"])');
     form.onsubmit = async e => {
       e.preventDefault();
       const body = readForm();
       const problem = cfg.validate && cfg.validate(body);
       if (problem) return toast(problem, true);
+      const label = submitBtn.textContent;
+      submitBtn.disabled = true; 
+      submitBtn.textContent = 'Saving…';
       try {
         await api(editId ? `${cfg.endpoint}/${editId}` : cfg.endpoint, editId ? 'PUT' : 'POST', body);
         toast(cfg.successMessage || 'Saved');
@@ -324,8 +352,10 @@ async function initCrud(cfg) {
         await refreshFieldOptions();
         await load();
       } catch (err) { toast(err.message, true); }
+      finally { submitBtn.disabled = false; submitBtn.textContent = label; }
     };
   }
 
   load();
+  return { reload: load };
 }
