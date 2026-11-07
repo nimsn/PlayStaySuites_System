@@ -110,8 +110,12 @@ CREATE TABLE invoices (
     booking_id INT NOT NULL,
     issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     total_due DECIMAL(10,2) NOT NULL,
-    invoice_status ENUM('Unpaid', 'Paid', 'Refunded') DEFAULT 'Unpaid',
-    FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE
+    invoice_status ENUM('Unpaid', 'Paid', 'Refunded', 'Void') DEFAULT 'Unpaid',
+    voided_at DATETIME NULL,
+    voided_by INT NULL,
+    void_reason VARCHAR(255) NULL,
+    FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
+    FOREIGN KEY (voided_by) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
 CREATE TABLE payments (
