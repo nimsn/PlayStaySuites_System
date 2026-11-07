@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Users & Staff | PlayStaySuites</title>
+<title>Rooms | PlayStaySuites</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,29 +12,26 @@
 <script src="app.js"></script>
 <script>
 initCrud({
-  title: 'Users & Staff',
-  subtitle: 'Customer accounts and staff records. Position and shift only apply to staff.',
-  endpoint: '/users',        // LEFT JOIN: every user (with role), plus staff details when they have a staff record
-  idKey: 'user_id',
+  title: 'Rooms',
+  subtitle: 'Room inventory, rates, amenities and current status.',
+  endpoint: '/rooms',
+  studentCanAdd: false,        
+  idKey: 'room_id',
   columns: [
-    { key: 'user_id', label: 'ID' },
-    { key: 'last_name', label: 'Name', render: r => esc(`${r.first_name} ${r.last_name}`) },
-    { key: 'student_id_number', label: 'Student ID', render: r => esc(r.student_id_number || '-') },
-    { key: 'email', label: 'Email' },
-    { key: 'phone_number', label: 'Phone' },
-    { key: 'role_name', label: 'Role', render: r => badge(r.role_name || 'none') },
-    { key: 'position', label: 'Staff position', render: r => r.position ? esc(r.position) : '<span class="mute">Not staff</span>' },
+    { key: 'room_number', label: 'Room' },
+    { key: 'floor_level', label: 'Floor' },
+    { key: 'type_name', label: 'Type' },
+    { key: 'base_rate_per_hour', label: 'Base rate per hour', render: r => peso(r.base_rate) },
+    { key: 'max_capacity', label: 'Max capacity' },
+    { key: 'amenities', label: 'Amenities', render: r => r.amenities ? `<div class="amenity-tags">${r.amenities.split(',').map(name => `<span class="amenity-tag">${esc(name.trim())}</span>`).join('')}</div>` : '<span class="mute">None listed</span>' },
+    { key: 'current_status', label: 'Status', render: r => badge(r.current_status) },
   ],
   fields: [
-    { key: 'first_name', label: 'First name' },
-    { key: 'last_name', label: 'Last name' },
-    { key: 'student_id_number', label: 'Student ID (optional)', required: false },
-    { key: 'email', label: 'Email', type: 'email' },
-    { key: 'phone_number', label: 'Phone number' },
-    { key: 'role_id', label: 'Role', type: 'select', from: { url: '/users/roles', value: 'role_id', label: o => o.role_name } },
-    { key: 'password', label: 'Password (blank keeps current)', type: 'password', required: false },
-    { key: 'position', label: 'Staff position (staff only)', required: false },
-    { key: 'shift_schedule', label: 'Shift schedule (staff only)', required: false },
+    { key: 'room_number', label: 'Room number' },
+    { key: 'floor_level', label: 'Floor level', type: 'number', step: 1 },
+    { key: 'room_type_id', label: 'Room type', type: 'select', from: { url: '/rooms/types', value: 'room_type_id', label: o => o.type_name } },
+    { key: 'current_status', label: 'Status', type: 'select', options: ['Available', 'Occupied', 'Maintenance', 'Cleaning'] },
+    { key: 'amenity_ids', label: 'Room amenities', type: 'checkboxes', required: false, help: 'Select the amenities physically assigned to this room. Customers can view these details but cannot change them.', from: { url: '/amenities', value: 'amenity_id', label: o => `${o.amenity_name}${o.price ? ` (+${peso(o.price)})` : ''}` } },
   ],
 });
 </script>
