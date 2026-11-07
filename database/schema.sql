@@ -1,5 +1,4 @@
 CREATE DATABASE IF NOT EXISTS final_system;
-
 USE final_system;
 
 CREATE TABLE roles (
