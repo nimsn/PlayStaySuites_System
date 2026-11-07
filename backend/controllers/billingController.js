@@ -37,6 +37,33 @@ exports.getInvoices = async (req, res) => {
     }
 };
 
+exports.getInvoice = async (req, res) => {
+    try {
+        res.status(200).json(await BillingModel.getInvoice(req.params.id));
+    } catch (err) {
+        handleError(res, err, 'load invoice');
+    }
+};
+
+exports.updateInvoice = async (req, res) => {
+    try {
+        const result = await BillingModel.recalculateInvoice(req.params.id);
+        res.status(200).json({ message: 'Invoice recalculated', ...result });
+    } catch (err) {
+        handleError(res, err, 'recalculate invoice');
+    }
+};
+
+exports.removeInvoice = async (req, res) => {
+    try {
+        const reason = (req.body || {}).reason ?? req.query.reason;
+        const result = await BillingModel.voidInvoice(req.params.id, { userId: req.user.user_id, reason });
+        res.status(200).json({ message: 'Invoice voided', ...result });
+    } catch (err) {
+        handleError(res, err, 'void invoice');
+    }
+};
+
 exports.addPayment = async (req, res) => {
     try {
         const { paymentId, balance, invoice_status } = await BillingModel.recordPayment(req.body || {});
