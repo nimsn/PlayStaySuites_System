@@ -62,7 +62,6 @@ The database has **14 tables**, and every one is used by the code: 3 + 3 + 3 + 3
 1. `npm install`
 2. Copy `.env.example` to `.env` and fill in `DB_PASSWORD` and `JWT_SECRET`.
 3. Import `database/schema.sql`, then `database/seed.sql` into MySQL.
-   *Already have the database from an older schema?* Run `database/migration_complete_resources.sql` once instead (adds invoice void columns, drops the unused `booking_amenities` table).
 4. Hash the seed passwords once: `node backend/scripts/migrateLegacyPasswords.js`
 5. Start the server: `node backend/server.js`, then open http://localhost:9000
 
@@ -166,13 +165,12 @@ Open **Reports** in the navigation bar (`reports.html`). It has one tab per repo
 
 ```text
 PlayStaySuites_System/
-├──── .env                                      # Environment configuration keys
+├──── .env.example                              # Environment configuration keys
 ├──── .gitignore                                # node_modules, .env
 ├──── README.md                                 # Roster, Ownership Matrix, API list & Setup instructions
 ├──── database/
 |       ├──── schema.sql                        # Table creation commands (14 tables)
-|       ├──── seed.sql                          # Sample data
-|       └──── migration_complete_resources.sql  # One-time upgrade for an existing database
+|       └──── seed.sql                          # Sample data
 ├──── backend/                                  # Node.js MVC REST API
 |       ├──── server.js                         # App entry point
 |       ├──── config/db.js                      # Database connection setup
